@@ -1,0 +1,23 @@
+[
+  {
+    "id": "flights",
+    "icon": "✈️",
+    "title": "항공권·호텔 가격",
+    "description": "구글 항공권·구글 호텔 최저가를 확인하고 Jev가 구매 시점을 판단합니다.",
+    "status": "active"
+  },
+  {
+    "id": "udemy",
+    "icon": "🎓",
+    "title": "Udemy 강의 가격",
+    "description": "지정한 강의가 할인가로 내려가면 알려 줍니다.",
+    "status": "planned"
+  },
+  {
+    "id": "ktx",
+    "icon": "🚄",
+    "title": "KTX 취소표",
+    "description": "매진된 열차에 빈 좌석이 생기면 알려 줍니다.",
+    "status": "planned"
+  }
+]

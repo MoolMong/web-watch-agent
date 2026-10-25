@@ -1,0 +1,58 @@
+{
+  "checkedAt": "2026-10-25T14:32:39.394Z",
+  "flight": {
+    "url": "https://www.google.com/travel/flights?q=Flights%20to%20NRT%20from%20ICN%20on%202026-12-10%20through%202026-12-14&curr=KRW&hl=ko",
+    "count": 35,
+    "minPrice": 313246,
+    "medianPrice": 364246,
+    "cheapest": [
+      {
+        "airline": "에어서울",
+        "price": 313246
+      },
+      {
+        "airline": "ZIPAIR Tokyo",
+        "price": 317346
+      },
+      {
+        "airline": "ZIPAIR Tokyo",
+        "price": 317346
+      }
+    ],
+    "googleInsight": ""
+  },
+  "hotel": {
+    "url": "https://www.google.com/travel/search?q=Tokyo%20hotels%202026-12-10%20to%202026-12-14&curr=KRW&hl=ko",
+    "count": 18,
+    "minPricePerNight": 76941,
+    "medianPricePerNight": 92735
+  },
+  "config": {
+    "flight": {
+      "origin": "ICN",
+      "destination": "NRT",
+      "departDate": "2026-12-10",
+      "returnDate": "2026-12-14",
+      "adults": 1,
+      "currency": "KRW",
+      "targetPrice": 300000
+    },
+    "hotel": {
+      "enabled": true,
+      "query": "Tokyo hotels",
+      "checkIn": "2026-12-10",
+      "checkOut": "2026-12-14"
+    },
+    "alert": {
+      "minBuyProbability": 0.7
+    }
+  },
+  "verdict": {
+    "model": "typesafe/jev-1.14-20261014",
+    "isCheap": 0.68,
+    "buyProbability": 0.46,
+    "hitTarget": false,
+    "alert": false,
+    "cost": 0.000023604
+  }
+}

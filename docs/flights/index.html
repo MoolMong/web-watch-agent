@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flights · Web Watch Agent</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="back" href="../">← 모든 감시</a>
+    <h1>항공권·호텔 가격 감시</h1>
+    <p class="sub">구글 항공권·호텔 가격을 3시간마다 확인하고, Jev가 지금 살 때인지 판단합니다.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="verdict" class="card verdict" aria-live="polite">
+    <p class="muted">불러오는 중…</p>
+  </section>
+
+  <section class="grid">
+    <div class="card stat"><span class="label">항공권 최저가</span><span id="s-min" class="value">-</span><span id="s-airline" class="hint"></span></div>
+    <div class="card stat"><span class="label">오늘 중앙값</span><span id="s-med" class="value">-</span><span class="hint">검색 결과 전체 기준</span></div>
+    <div class="card stat"><span class="label">목표가</span><span id="s-target" class="value">-</span><span id="s-gap" class="hint"></span></div>
+    <div class="card stat"><span class="label">호텔 1박 최저</span><span id="s-hotel" class="value">-</span><span id="s-hotel-hint" class="hint">대략적인 참고값</span></div>
+  </section>
+
+  <section class="card">
+    <div class="row-between">
+      <h2>최저가 추이</h2>
+      <span id="trip" class="muted"></span>
+    </div>
+    <div id="chart" class="chart"></div>
+    <p id="insight" class="insight"></p>
+  </section>
+
+  <section class="card">
+    <h2>최근 확인 기록</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>확인 시각</th><th class="num">최저가</th><th class="num">저렴함</th><th class="num">구매 확률</th><th>판단</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>감시 조건 설정</h2>
+    <p class="muted">조건을 바꾸고 <b>설정 복사 → GitHub에서 붙여넣기 → Commit</b> 하면, 다음 확인(최대 3시간 뒤)부터 새 조건으로 감시합니다.</p>
+    <form id="cfg" class="form">
+      <label>출발 공항<input name="origin" required maxlength="3" placeholder="ICN"></label>
+      <label>도착 공항<input name="destination" required maxlength="3" placeholder="NRT"></label>
+      <label>가는 날<input name="departDate" type="date" required></label>
+      <label>오는 날 <small>(비우면 편도)</small><input name="returnDate" type="date"></label>
+      <label>성인<input name="adults" type="number" min="1" max="9" required></label>
+      <label>목표가 (원, 0=사용 안 함)<input name="targetPrice" type="number" min="0" step="1000" required></label>
+      <label>알림 기준 구매 확률 (%)<input name="minBuy" type="number" min="1" max="100" required></label>
+      <label class="check"><input name="hotelEnabled" type="checkbox"> 호텔도 확인</label>
+      <label class="wide">호텔 검색어<input name="hotelQuery" placeholder="Tokyo hotels"></label>
+      <div class="actions wide">
+        <button type="submit">설정 복사</button>
+        <a id="edit-link" class="button ghost" target="_blank" rel="noopener">GitHub에서 붙여넣기</a>
+        <span id="copied" class="muted"></span>
+      </div>
+    </form>
+    <pre id="preview" class="preview"></pre>
+  </section>
+
+  <footer class="muted foot">
+    가격 수집은 사용자 PC의 ego 브라우저가, 판단은 OpenRouter의 TypeSafe Jev가 합니다. 결제는 자동으로 하지 않습니다.
+    <span id="updated"></span>
+  </footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

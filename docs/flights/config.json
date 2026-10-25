@@ -1,0 +1,20 @@
+{
+  "flight": {
+    "origin": "ICN",
+    "destination": "NRT",
+    "departDate": "2026-12-10",
+    "returnDate": "2026-12-14",
+    "adults": 1,
+    "currency": "KRW",
+    "targetPrice": 300000
+  },
+  "hotel": {
+    "enabled": true,
+    "query": "Tokyo hotels",
+    "checkIn": "2026-12-10",
+    "checkOut": "2026-12-14"
+  },
+  "alert": {
+    "minBuyProbability": 0.7
+  }
+}
