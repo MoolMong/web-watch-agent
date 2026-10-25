@@ -1,12 +1,12 @@
 // Runs inside `ego-browser nodejs` (not plain node). Read-only: it opens Google Flights /
 // Google Hotels, reads prices, and writes watchers/flights/.tmp/scrape.json. It never clicks booking or pay buttons.
+// core/agent.ts writes the current config to .tmp/config.json before starting this script.
 const fs = await import("node:fs/promises");
 const { fileURLToPath } = await import("node:url");
 const path = await import("node:path");
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, "..", "..");
-const config = JSON.parse(await fs.readFile(path.join(root, "docs", "flights", "config.json"), "utf8"));
+const config = JSON.parse(await fs.readFile(path.join(here, ".tmp", "config.json"), "utf8"));
 const f = config.flight;
 
 const task = await taskSpace("web-watch-agent flights");

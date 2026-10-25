@@ -99,6 +99,10 @@ th { color: var(--muted); font-weight: 600; font-size: 13px; }
 .help b { color: var(--text); }
 
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+.linkish { background: none; border: 0; padding: 0; color: var(--muted); font-size: 13px; font-weight: 400; cursor: pointer; text-decoration: underline; }
+.login { max-width: 460px; }
+.login-form { grid-template-columns: 1fr; }
+.run-status.error { background: var(--wait-bg); color: var(--target); }
 .run-status { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; font-size: 14px; }
 .run-status.pending { background: var(--wait-bg); color: var(--text); }
 .run-status.done { background: var(--good-bg); color: var(--text); }

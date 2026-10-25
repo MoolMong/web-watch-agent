@@ -7,27 +7,111 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
-
-async function getJSON(path) {
-  const res = await fetch(`${path}?t=${Date.now()}`);
-  if (!res.ok) throw new Error(`${path}: ${res.status}`);
-  return res.json();
-}
+const WATCHER = "flights";
+let sb;
 
 // ---- airports ----
 const AIRPORT_BY_CODE = Object.fromEntries(window.AIRPORTS.map((a) => [a[0], a]));
 const COUNTRY_ORDER = Object.keys(window.COUNTRIES);
 function airportLabel(code) {
   const a = AIRPORT_BY_CODE[code];
-  return a ? `${a[2]} ${a[1]} (${a[0]})` : code;
+  return a ? `${a[2]} ${a[1]} (${a[0]})` : code || "";
 }
 
+// ---- data ----
+async function loadData() {
+  const [cfgRes, latestRes] = await Promise.all([
+    sb.from("watch_configs").select("config").eq("watcher", WATCHER).maybeSingle(),
+    sb.from("watch_checks").select("checked_at, config_key, snapshot").eq("watcher", WATCHER).order("checked_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  if (cfgRes.error) throw cfgRes.error;
+  if (latestRes.error) throw latestRes.error;
+  let points = [];
+  if (latestRes.data) {
+    const hist = await sb.from("watch_checks").select("checked_at, summary").eq("watcher", WATCHER)
+      .eq("config_key", latestRes.data.config_key).order("checked_at", { ascending: true }).limit(500);
+    if (hist.error) throw hist.error;
+    points = hist.data.map((r) => ({ checkedAt: r.checked_at, ...r.summary }));
+  }
+  return { config: cfgRes.data?.config ?? null, latest: latestRes.data?.snapshot ?? null, points };
+}
+
+async function refresh() {
+  const { config, latest, points } = await loadData();
+  if (config) setupForm(config);
+  if (!latest) {
+    $("verdict").innerHTML = `<p class="muted">아직 확인 결과가 없습니다. 아래에서 조건을 정하고 <b>이 조건으로 지금 검색</b>을 눌러 보세요.</p>`;
+    return;
+  }
+  renderVerdict(latest);
+  renderStats(latest);
+  renderChart(points, latest.config.flight.targetPrice);
+  renderRows(points);
+  renderHotels(latest);
+  if (config && JSON.stringify(config.flight) !== JSON.stringify(latest.config.flight)) {
+    $("insight").textContent = "조건이 바뀌었습니다. 다음 확인부터 새 조건으로 기록됩니다.";
+  }
+}
+
+// ---- requests ("지금 검색") ----
+let watching = null;
+async function requestRun(config) {
+  const { data, error } = await sb.from("watch_requests").insert({ watcher: WATCHER, config }).select("id, status, created_at").single();
+  if (error) { showStatus("error", `요청을 보내지 못했습니다: ${esc(error.message)}`); return; }
+  watchRequest(data);
+}
+
+function showStatus(kind, html) {
+  const el = $("run-status");
+  el.hidden = false;
+  el.className = `run-status ${kind}`;
+  el.innerHTML = html;
+}
+
+function watchRequest(req) {
+  if (watching) { sb.removeChannel(watching.channel); clearInterval(watching.timer); }
+  const render = async (r) => {
+    if (r.status === "pending") {
+      const waited = Date.now() - Date.parse(r.created_at);
+      showStatus("pending", waited > 60_000
+        ? `⏳ 요청 #${r.id}이 1분 넘게 대기 중입니다. PC가 켜져 있고 에이전트가 실행 중인지 확인하세요.`
+        : `⏳ 요청 #${r.id}을 PC에 보냈습니다. 곧 시작합니다…`);
+    } else if (r.status === "running") {
+      showStatus("pending", `🔎 검색 중입니다 (#${r.id}). 보통 1~2분 걸립니다.`);
+    } else {
+      clearInterval(watching?.timer);
+      if (watching) sb.removeChannel(watching.channel);
+      watching = null;
+      if (r.status === "done") { showStatus("done", `✅ 검색 완료 (#${r.id}) · ${esc(r.message || "")}`); await refresh(); }
+      else showStatus("error", `⚠️ 검색 실패 (#${r.id}): ${esc(r.message || "")}`);
+    }
+  };
+  const channel = sb.channel(`req-${req.id}`)
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "watch_requests", filter: `id=eq.${req.id}` }, (p) => render(p.new))
+    .subscribe();
+  // Fallback in case realtime is unavailable.
+  const timer = setInterval(async () => {
+    const { data } = await sb.from("watch_requests").select("id, status, message, created_at").eq("id", req.id).single();
+    if (data) render(data);
+  }, 5000);
+  watching = { channel, timer };
+  render(req);
+}
+
+async function resumePendingRequest() {
+  const { data } = await sb.from("watch_requests").select("id, status, message, created_at")
+    .eq("watcher", WATCHER).in("status", ["pending", "running"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (data) watchRequest(data);
+}
+
+// ---- rendering ----
 function renderVerdict(latest) {
   const v = latest.verdict;
   const el = $("verdict");
   el.className = "card verdict " + (v.alert ? "buy" : "wait");
   const links = [`<a class="button" href="${esc(latest.flight.url)}" target="_blank" rel="noopener">구글 항공권에서 보기</a>`];
   if (latest.hotel) links.push(`<a class="button ghost" href="${esc(latest.hotel.url)}" target="_blank" rel="noopener">호텔 보기</a>`);
+  links.push(`<button type="button" class="button ghost" id="rerun">지금 다시 검색</button>`);
   const threshold = Math.round((latest.config.alert?.minBuyProbability ?? 0.7) * 100);
   el.innerHTML = `
     <div class="badge">${v.alert ? "지금 구매 추천" : "기다리세요"}</div>
@@ -36,6 +120,7 @@ function renderVerdict(latest) {
       <p class="muted">${v.alert ? "링크에서 직접 확인하고 결제하세요. 자동 결제는 하지 않습니다." : "구매 확률이 알림 기준을 넘거나 목표가에 닿으면 이 화면이 바뀝니다."}</p>
     </div>
     <div class="actions">${links.join("")}</div>`;
+  $("rerun").addEventListener("click", () => requestRun(null));
 }
 
 function renderStats(latest) {
@@ -44,10 +129,7 @@ function renderStats(latest) {
   $("s-airline").textContent = f.cheapest?.[0]?.airline || "";
   $("s-med").textContent = won(f.medianPrice);
   $("s-target").textContent = c.targetPrice ? won(c.targetPrice) : "없음";
-  if (c.targetPrice) {
-    const gap = f.minPrice - c.targetPrice;
-    $("s-gap").textContent = gap <= 0 ? "목표가 이하" : `목표까지 ${won(gap)}`;
-  }
+  $("s-gap").textContent = c.targetPrice ? (f.minPrice <= c.targetPrice ? "목표가 이하" : `목표까지 ${won(f.minPrice - c.targetPrice)}`) : "";
   if (!latest.hotel) $("s-hotel").textContent = "확인 안 함";
   $("trip").textContent = `${airportLabel(c.origin)} → ${airportLabel(c.destination)} · ${c.departDate}${c.returnDate ? " ~ " + c.returnDate : " 편도"} · 성인 ${c.adults}`;
   $("insight").textContent = f.googleInsight ? "Google: " + f.googleInsight : "";
@@ -92,85 +174,79 @@ function renderRows(points) {
 
 // ---- hotels ----
 const TAG_LABEL = { capsule: "캡슐호텔", dorm: "공유방", private: "개인실" };
+let hotelData = null;
+
+function drawHotels() {
+  const h = hotelData;
+  if (!h?.list) return;
+  const c = h.config;
+  const exCapsule = $("ex-capsule").checked, exDorm = $("ex-dorm").checked, sort = $("hotel-sort").value;
+  store.set("ex-capsule", exCapsule); store.set("ex-dorm", exDorm); store.set("hotel-sort", sort);
+  const shown = h.list
+    .filter((x) => !(exCapsule && x.tag === "capsule") && !(exDorm && x.tag === "dorm"))
+    .sort((a, b) => sort === "rating" ? (b.rating ?? 0) - (a.rating ?? 0) || a.price - b.price : a.price - b.price);
+  const hidden = h.list.length - shown.length;
+  $("hotel-meta").textContent = `${c.query || ""} · ${c.minRating ? `평점 ${Number(c.minRating).toFixed(1)} 이상 · ` : ""}${shown.length}곳${hidden ? ` (${hidden}곳 숨김)` : ""}`;
+  $("s-hotel").textContent = shown.length ? won(Math.min(...shown.map((x) => x.price))) : "-";
+  $("hotels").innerHTML = shown.map((x) => {
+    const q = encodeURIComponent(`${x.name} ${c.checkIn || ""} to ${c.checkOut || ""}`);
+    const tag = x.tag ? `<span class="tag lodging ${x.tag}" title="Jev 확신도 ${pct(x.tagConfidence)}">${TAG_LABEL[x.tag] || esc(x.tag)}</span>` : "";
+    return `<li class="hotel">
+      <div class="hotel-main">
+        <a href="https://www.google.com/travel/search?q=${q}&hl=ko&curr=KRW" target="_blank" rel="noopener">${esc(x.name)}</a>
+        <span class="hotel-sub">${x.rating != null ? `★ ${x.rating.toFixed(1)}` : "평점 없음"}${x.reviews ? ` (${x.reviews.toLocaleString("ko-KR")})` : ""}${x.stars ? ` · ${x.stars}성급` : ""}${x.deal ? ` · ${esc(x.deal)}` : ""}</span>
+      </div>
+      <div class="hotel-side">${tag}<b>${won(x.price)}</b></div>
+    </li>`;
+  }).join("") || `<li class="muted">조건에 맞는 숙소가 없습니다.</li>`;
+}
 
 function renderHotels(latest) {
-  const h = latest.hotel;
-  if (!h?.list) return;
+  if (!latest.hotel?.list) { $("hotel-card").hidden = true; return; }
+  hotelData = { list: latest.hotel.list, config: latest.config.hotel || {} };
   $("hotel-card").hidden = false;
-  const c = latest.config.hotel || {};
-  const exCapsule = $("ex-capsule"), exDorm = $("ex-dorm"), sort = $("hotel-sort");
-  exCapsule.checked = store.get("ex-capsule", false);
-  exDorm.checked = store.get("ex-dorm", false);
-  sort.value = store.get("hotel-sort", "price");
+  drawHotels();
+}
 
-  const draw = () => {
-    store.set("ex-capsule", exCapsule.checked);
-    store.set("ex-dorm", exDorm.checked);
-    store.set("hotel-sort", sort.value);
-    const shown = h.list
-      .filter((x) => !(exCapsule.checked && x.tag === "capsule") && !(exDorm.checked && x.tag === "dorm"))
-      .sort((a, b) => sort.value === "rating" ? (b.rating ?? 0) - (a.rating ?? 0) || a.price - b.price : a.price - b.price);
-    const hidden = h.list.length - shown.length;
-    $("hotel-meta").textContent = `${esc(c.query || "")} · ${c.minRating ? `평점 ${Number(c.minRating).toFixed(1)} 이상 · ` : ""}${shown.length}곳${hidden ? ` (${hidden}곳 숨김)` : ""}`;
-    $("s-hotel").textContent = shown.length ? won(Math.min(...shown.map((x) => x.price))) : "-";
-    $("hotels").innerHTML = shown.map((x) => {
-      const q = encodeURIComponent(`${x.name} ${c.checkIn || ""} to ${c.checkOut || ""}`);
-      const tag = x.tag ? `<span class="tag lodging ${x.tag}" title="Jev 확신도 ${pct(x.tagConfidence)}">${TAG_LABEL[x.tag] || x.tag}</span>` : "";
-      return `<li class="hotel">
-        <div class="hotel-main">
-          <a href="https://www.google.com/travel/search?q=${q}&hl=ko&curr=KRW" target="_blank" rel="noopener">${esc(x.name)}</a>
-          <span class="hotel-sub">${x.rating != null ? `★ ${x.rating.toFixed(1)}` : "평점 없음"}${x.reviews ? ` (${x.reviews.toLocaleString("ko-KR")})` : ""}${x.stars ? ` · ${x.stars}성급` : ""}${x.deal ? ` · ${esc(x.deal)}` : ""}</span>
-        </div>
-        <div class="hotel-side">${tag}<b>${won(x.price)}</b></div>
-      </li>`;
-    }).join("") || `<li class="muted">조건에 맞는 숙소가 없습니다.</li>`;
-  };
-  [exCapsule, exDorm, sort].forEach((el) => el.addEventListener("change", draw));
-  draw();
+function setupHotelFilters() {
+  $("ex-capsule").checked = store.get("ex-capsule", false);
+  $("ex-dorm").checked = store.get("ex-dorm", false);
+  $("hotel-sort").value = store.get("hotel-sort", "price");
+  ["ex-capsule", "ex-dorm", "hotel-sort"].forEach((id) => $(id).addEventListener("change", drawHotels));
 }
 
 // ---- airport combobox ----
 function searchAirports(query) {
   const q = query.trim().toLowerCase();
   if (!q) return null;
-  const hits = window.AIRPORTS.filter(([code, name, cityKo, cityEn, cc]) => {
-    const country = window.COUNTRIES[cc] || [];
-    return [code, name, cityKo, cityEn, ...country].join(" ").toLowerCase().includes(q);
-  });
+  const hits = window.AIRPORTS.filter(([code, name, cityKo, cityEn, cc]) =>
+    [code, name, cityKo, cityEn, ...(window.COUNTRIES[cc] || [])].join(" ").toLowerCase().includes(q));
   return hits.sort((a, b) => (b[0].toLowerCase() === q) - (a[0].toLowerCase() === q) || b[5] - a[5]);
 }
 
-function setupCombo(field, initial) {
+const combos = {};
+function setupCombo(field) {
   const box = document.querySelector(`.combo[data-field="${field}"]`);
   const input = box.querySelector("[role=combobox]");
   const hidden = box.querySelector("input[type=hidden]");
   const list = box.querySelector("[role=listbox]");
-  let items = [], active = -1;
+  let active = -1;
 
-  const choose = (code) => {
-    hidden.value = code;
-    input.value = airportLabel(code);
-    close();
-    updatePreview();
-  };
   const close = () => { list.hidden = true; input.setAttribute("aria-expanded", "false"); active = -1; };
+  const choose = (code) => { hidden.value = code; input.value = airportLabel(code); close(); updatePreview(); };
   const row = (a, i) => `<li role="option" id="${field}-opt-${i}" data-code="${a[0]}" class="combo-item">
       <span class="code">${a[0]}</span><span class="name">${esc(a[2])} · ${esc(a[1])}</span><span class="country">${esc(window.COUNTRIES[a[4]]?.[0] || "")}</span></li>`;
   const open = () => {
     const hits = searchAirports(input.value === airportLabel(hidden.value) ? "" : input.value);
-    let html;
+    let html, n = 0;
     if (hits) {
-      items = hits.slice(0, 40);
-      html = items.map(row).join("") || `<li class="combo-empty">결과 없음. 공항 코드(예: NRT)로도 찾을 수 있습니다.</li>`;
+      html = hits.slice(0, 40).map(row).join("") || `<li class="combo-empty">결과 없음. 공항 코드(예: NRT)로도 찾을 수 있습니다.</li>`;
     } else {
       // No query: every country in order, airports by size within it.
-      items = [];
       html = COUNTRY_ORDER.map((cc) => {
         const group = window.AIRPORTS.filter((a) => a[4] === cc).sort((a, b) => b[5] - a[5]);
         if (!group.length) return "";
-        const start = items.length;
-        items.push(...group);
-        return `<li class="combo-group" role="presentation">${esc(window.COUNTRIES[cc][0])}</li>` + group.map((a, j) => row(a, start + j)).join("");
+        return `<li class="combo-group" role="presentation">${esc(window.COUNTRIES[cc][0])}</li>` + group.map((a) => row(a, n++)).join("");
       }).join("");
     }
     list.innerHTML = html;
@@ -205,45 +281,38 @@ function setupCombo(field, initial) {
     if (li) { e.preventDefault(); choose(li.dataset.code); }
   });
   input.addEventListener("blur", () => { close(); input.value = airportLabel(hidden.value); });
-
-  hidden.value = initial;
-  input.value = airportLabel(initial);
+  combos[field] = (code) => { hidden.value = code; input.value = airportLabel(code); };
 }
 
 // ---- config form ----
-function repoInfo() {
-  const m = location.hostname.match(/^([^.]+)\.github\.io$/);
-  const repo = location.pathname.split("/").filter(Boolean)[0];
-  return m && repo ? { owner: m[1], repo } : null;
-}
-
 function setSelect(select, value) {
   const v = String(value);
-  if (![...select.options].some((o) => o.value === v)) select.add(new Option(`${v}`, v));
+  if (![...select.options].some((o) => o.value === v)) select.add(new Option(v, v));
   select.value = v;
 }
 
-function fillForm(cfg) {
+let formReady = false;
+function setupForm(cfg) {
+  // Fill once; later refreshes must not overwrite what the user is editing.
+  if (formReady) return;
+  formReady = true;
   const f = $("cfg").elements, c = cfg.flight, h = cfg.hotel || {};
-  setupCombo("origin", c.origin);
-  setupCombo("destination", c.destination);
+  combos.origin(c.origin);
+  combos.destination(c.destination);
   f.departDate.value = c.departDate; f.returnDate.value = c.returnDate || "";
   f.adults.value = c.adults; f.targetPrice.value = c.targetPrice;
   setSelect(f.minBuy, Math.round((cfg.alert?.minBuyProbability ?? 0.7) * 100));
   f.hotelEnabled.checked = !!h.enabled; f.hotelQuery.value = h.query || "";
   setSelect(f.minRating, Number(h.minRating) || 0);
+  updatePreview();
 }
 
 function buildConfig() {
   const f = $("cfg").elements;
   const flight = {
-    origin: f.origin.value,
-    destination: f.destination.value,
-    departDate: f.departDate.value,
-    returnDate: f.returnDate.value,
-    adults: Number(f.adults.value),
-    currency: "KRW",
-    targetPrice: Number(f.targetPrice.value),
+    origin: f.origin.value, destination: f.destination.value,
+    departDate: f.departDate.value, returnDate: f.returnDate.value,
+    adults: Number(f.adults.value), currency: "KRW", targetPrice: Number(f.targetPrice.value),
   };
   return {
     flight,
@@ -257,91 +326,37 @@ function buildConfig() {
 
 function updatePreview() { $("preview").textContent = JSON.stringify(buildConfig(), null, 2); }
 
-function setupForm(cfg) {
-  fillForm(cfg);
-  updatePreview();
+function setupFormEvents() {
+  setupCombo("origin");
+  setupCombo("destination");
   $("cfg").addEventListener("input", updatePreview);
   $("cfg").addEventListener("change", updatePreview);
-  const info = repoInfo();
-  if (!info) { $("run-btn").disabled = true; $("run-btn").title = "GitHub Pages에서 열면 동작합니다"; }
-
-  // "지금 검색": open a prefilled GitHub issue; the PC's poll task applies it and runs a check.
   $("cfg").addEventListener("submit", (e) => {
     e.preventDefault();
     const cfg = buildConfig();
     if (!cfg.flight.origin || !cfg.flight.destination) { $("copied").textContent = "출발·도착 공항을 목록에서 골라 주세요."; return; }
     if (cfg.flight.returnDate && cfg.flight.returnDate < cfg.flight.departDate) { $("copied").textContent = "오는 날이 가는 날보다 빠릅니다."; return; }
-    const c = cfg.flight;
-    const title = `[run] flights ${c.origin}→${c.destination} ${c.departDate}${c.returnDate ? "~" + c.returnDate : ""}`;
-    const body = "대시보드에서 보낸 검색 요청입니다. **Submit new issue**를 누르면 PC가 이 조건을 저장하고 바로 검색합니다.\n\n```json\n"
-      + JSON.stringify(cfg, null, 2) + "\n```\n";
-    const url = `https://github.com/${info.owner}/${info.repo}/issues/new?labels=run&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
-    window.open(url, "_blank", "noopener");
-    store.set("run-requested-at", Date.now());
-    $("copied").textContent = "GitHub 창에서 Submit new issue를 눌러 주세요.";
-    watchRunStatus(info);
+    $("copied").textContent = "";
+    requestRun(cfg);
   });
   $("copy-btn").addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(JSON.stringify(buildConfig(), null, 2) + "\n"); $("copied").textContent = "설정을 복사했습니다."; }
     catch { $("copied").textContent = "복사 권한이 없습니다. '설정 JSON 보기'에서 직접 복사하세요."; }
   });
-  if (info) watchRunStatus(info);
-}
-
-// Shows the newest search request and its state; while one is pending, re-check every 20 s
-// and reload the dashboard once the PC closes it.
-let statusTimer = null;
-async function watchRunStatus(info) {
-  clearTimeout(statusTimer);
-  const el = $("run-status");
-  let issue;
-  try {
-    const res = await fetch(`https://api.github.com/repos/${info.owner}/${info.repo}/issues?labels=run&state=all&per_page=1&sort=created`);
-    if (!res.ok) return;
-    [issue] = await res.json();
-  } catch { return; }
-  const requestedAt = store.get("run-requested-at", 0);
-  const waiting = Date.now() - requestedAt < 10 * 60_000;
-  if (!issue && !waiting) return;
-  el.hidden = false;
-  const link = issue ? `<a href="${esc(issue.html_url)}" target="_blank" rel="noopener">#${issue.number}</a>` : "";
-  if (issue?.state === "open") {
-    el.className = "run-status pending";
-    el.innerHTML = `⏳ 검색 요청 ${link} 처리 중입니다. PC가 켜져 있으면 2분 안에 시작하고, 검색은 1~2분 걸립니다.`;
-  } else if (waiting && (!issue || Date.parse(issue.created_at) < requestedAt - 60_000)) {
-    el.className = "run-status pending";
-    el.innerHTML = `GitHub 창에서 <b>Submit new issue</b>를 누르면 여기에 진행 상황이 표시됩니다.`;
-  } else {
-    el.className = "run-status done";
-    el.innerHTML = `✅ 최근 검색 요청 ${link} 처리 완료 (${when(issue.closed_at || issue.updated_at)})`;
-    if (store.get("run-reloaded-for", 0) !== issue.number && waiting) {
-      // GitHub Pages needs about a minute to publish the pushed results.
-      store.set("run-reloaded-for", issue.number);
-      el.innerHTML += " · 결과를 반영하는 중이라 1분 뒤 새로고침합니다.";
-      setTimeout(() => location.reload(), 60_000);
-    }
-    return;
-  }
-  if (Date.now() - requestedAt < 30 * 60_000) statusTimer = setTimeout(() => watchRunStatus(info), 20_000);
 }
 
 (async () => {
-  let cfg;
-  try { cfg = await getJSON("config.json"); setupForm(cfg); } catch (e) { console.error(e); }
+  try { await window.wwa.requireLogin(document.querySelector("main")); } catch { return; }
+  sb = window.wwa.sb;
+  $("logout").hidden = false;
+  $("logout").addEventListener("click", window.wwa.logout);
+  setupFormEvents();
+  setupHotelFilters();
   try {
-    const [latest, history] = await Promise.all([getJSON("data/latest.json"), getJSON("data/history.json").catch(() => [])]);
-    const key = JSON.stringify((cfg || latest.config).flight);
-    const points = history.filter((h) => h.configKey === key);
-    renderVerdict(latest);
-    renderStats(latest);
-    renderChart(points, latest.config.flight.targetPrice);
-    renderRows(points);
-    renderHotels(latest);
-    if (cfg && JSON.stringify(latest.config.flight) !== key) {
-      $("insight").textContent = "조건이 바뀌었습니다. 다음 확인부터 새 조건으로 기록됩니다.";
-    }
+    await refresh();
+    await resumePendingRequest();
   } catch (e) {
-    $("verdict").innerHTML = `<p class="muted">아직 확인 결과가 없습니다. PC에서 watcher를 한 번 실행하면 나타납니다.</p>`;
+    $("verdict").innerHTML = `<p class="muted">데이터를 불러오지 못했습니다: ${esc(e.message)}</p>`;
     console.error(e);
   }
 })();

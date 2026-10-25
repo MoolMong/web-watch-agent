@@ -1,23 +1,20 @@
-﻿# Registers the Windows scheduled tasks (they run only while you are logged on, because
-# ego lite needs your desktop session; windows stay hidden via hidden.vbs):
-#   WebWatchAgent-<watcher>  runs scripts\run.ps1 every N hours
-#   WebWatchAgent-requests   runs scripts\poll.ps1 every 2 minutes for dashboard "지금 검색" requests
-# Usage:  powershell -ExecutionPolicy Bypass -File scripts\register-task.ps1 -Watcher flights -Hours 3
-# Remove: Unregister-ScheduledTask -TaskName WebWatchAgent-flights -Confirm:$false
-#         Unregister-ScheduledTask -TaskName WebWatchAgent-requests -Confirm:$false
-param([string]$Watcher = "flights", [int]$Hours = 3)
+﻿# Registers the WebWatchAgent task: starts the PC agent hidden when you log on and restarts it
+# if it stops. ego lite needs your desktop session, so it runs only while you are logged on.
+# Also removes the tasks from the old GitHub-issue setup.
+# Usage:  powershell -ExecutionPolicy Bypass -File scripts\register-task.ps1
+# Remove: Unregister-ScheduledTask -TaskName WebWatchAgent -Confirm:$false
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $vbs = Join-Path $root "scripts\hidden.vbs"
-$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopIfGoingOnBatteries -AllowStartIfOnBatteries `
-  -ExecutionTimeLimit (New-TimeSpan -Minutes 30) -MultipleInstances IgnoreNew
+$ps1 = Join-Path $root "scripts\start-agent.ps1"
 
-function Register($name, $script, $extra, $interval, $desc) {
-  $action = New-ScheduledTaskAction -Execute "wscript.exe" `
-    -Argument "`"$vbs`" `"$(Join-Path $root $script)`" $extra" -WorkingDirectory $root
-  $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval $interval
-  Register-ScheduledTask -TaskName $name -Action $action -Trigger $trigger -Settings $settings -Description $desc -Force | Out-Null
-  Write-Host "Registered $name"
+foreach ($old in "WebWatchAgent-flights", "WebWatchAgent-requests") {
+  if (Get-ScheduledTask -TaskName $old -ErrorAction SilentlyContinue) { Unregister-ScheduledTask -TaskName $old -Confirm:$false; Write-Host "Removed $old" }
 }
 
-Register "WebWatchAgent-$Watcher" "scripts\run.ps1" "-Watcher $Watcher" (New-TimeSpan -Hours $Hours) "web-watch-agent: $Watcher check every $Hours h"
-Register "WebWatchAgent-requests" "scripts\poll.ps1" "" (New-TimeSpan -Minutes 2) "web-watch-agent: handle dashboard search requests"
+$action = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "`"$vbs`" `"$ps1`"" -WorkingDirectory $root
+$trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopIfGoingOnBatteries -AllowStartIfOnBatteries `
+  -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
+Register-ScheduledTask -TaskName "WebWatchAgent" -Action $action -Trigger $trigger -Settings $settings `
+  -Description "web-watch-agent: PC agent (Supabase requests + scheduled checks)" -Force | Out-Null
+Write-Host "Registered WebWatchAgent (at logon). Start now: Start-ScheduledTask -TaskName WebWatchAgent"

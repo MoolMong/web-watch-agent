@@ -10,7 +10,7 @@
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="back" href="../">← 모든 감시</a>
+    <div class="row-between"><a class="back" href="../">← 모든 감시</a><button type="button" id="logout" class="linkish" hidden>로그아웃</button></div>
     <h1>항공권·호텔 가격 감시</h1>
     <p class="sub">구글 항공권·호텔 가격을 3시간마다 확인하고, Jev가 지금 살 때인지 판단합니다.</p>
   </div>
@@ -112,9 +112,7 @@
         <span id="copied" class="muted"></span>
       </div>
       <p class="help wide">
-        <b>지금 검색은 이렇게 동작합니다.</b> 버튼을 누르면 GitHub에 조건이 채워진 "검색 요청" 화면이 열립니다.
-        <b>Submit new issue</b>만 누르면, 켜져 있는 PC가 2분 안에 새 조건을 저장하고 바로 검색한 뒤 이 화면을 갱신합니다.
-        (공개 사이트에 쓰기 권한을 두지 않기 위해 GitHub 로그인으로 한 번 확인받는 방식입니다.)
+        누르면 켜져 있는 PC가 몇 초 안에 새 조건을 저장하고 바로 검색합니다(검색 1~2분). 이후 3시간마다 이 조건으로 계속 확인합니다.
       </p>
     </form>
     <p id="run-status" class="run-status" hidden></p>
@@ -126,6 +124,9 @@
     <span id="updated"></span>
   </footer>
 </main>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="../lib.js"></script>
 <script src="airports.js"></script>
 <script src="app.js"></script>
 </body>

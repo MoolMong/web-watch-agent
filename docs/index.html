@@ -17,18 +17,22 @@
 <main class="wrap">
   <section id="list" class="hub"></section>
 </main>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="lib.js"></script>
 <script>
 (async () => {
   const list = document.getElementById("list");
+  try { await window.wwa.requireLogin(document.querySelector("main")); } catch { return; }
+  const sb = window.wwa.sb;
   try {
     const watchers = await (await fetch("watchers.json?t=" + Date.now())).json();
     const cards = await Promise.all(watchers.map(async (w) => {
       let line = w.status === "active" ? "" : "준비 중";
       if (w.status === "active") {
-        try {
-          const l = await (await fetch(`${w.id}/data/latest.json?t=${Date.now()}`)).json();
-          line = (l.verdict?.alert ? "🟢 알림: " : "") + "마지막 확인 " + new Date(l.checkedAt).toLocaleString("ko-KR");
-        } catch { line = "아직 기록 없음"; }
+        const { data } = await sb.from("watch_checks").select("checked_at, summary").eq("watcher", w.id)
+          .order("checked_at", { ascending: false }).limit(1).maybeSingle();
+        line = data ? (data.summary?.alert ? "🟢 알림 · " : "") + "마지막 확인 " + new Date(data.checked_at).toLocaleString("ko-KR") : "아직 기록 없음";
       }
       const tag = w.status === "active" ? "a" : "div";
       return `<${tag} class="card hub-item ${w.status}" ${w.status === "active" ? `href="${w.id}/"` : ""}>
@@ -36,9 +40,9 @@
         <span class="hub-body"><b>${w.title}</b><span class="muted">${w.description}</span><span class="hint">${line}</span></span>
       </${tag}>`;
     }));
-    list.innerHTML = cards.join("");
+    document.getElementById("list").innerHTML = cards.join("");
   } catch (e) {
-    list.innerHTML = `<p class="muted">목록을 불러오지 못했습니다.</p>`;
+    document.getElementById("list").innerHTML = `<p class="muted">목록을 불러오지 못했습니다.</p>`;
   }
 })();
 </script>

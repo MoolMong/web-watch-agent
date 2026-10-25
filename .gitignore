@@ -1,4 +1,5 @@
 watchers/*/.tmp/
+core/.tmp/
 node_modules/
 .env
 .env.*
