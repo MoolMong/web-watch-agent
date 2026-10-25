@@ -1,21 +1,21 @@
 {
   "flight": {
     "origin": "ICN",
-    "destination": "NRT",
-    "departDate": "2026-12-10",
-    "returnDate": "2026-12-14",
+    "destination": "FUK",
+    "departDate": "2026-11-06",
+    "returnDate": "2026-11-08",
     "adults": 1,
     "currency": "KRW",
     "targetPrice": 300000
   },
   "hotel": {
     "enabled": true,
-    "query": "Tokyo hotels",
-    "checkIn": "2026-12-10",
-    "checkOut": "2026-12-14",
+    "query": "hakata hotels",
+    "checkIn": "2026-11-06",
+    "checkOut": "2026-11-08",
     "minRating": 4
   },
   "alert": {
-    "minBuyProbability": 0.7
+    "minBuyProbability": 0.85
   }
 }
