@@ -80,6 +80,60 @@ th { color: var(--muted); font-weight: 600; font-size: 13px; }
   font-size: 12.5px; overflow-x: auto; margin: 14px 0 0;
 }
 .foot { font-size: 13px; padding: 8px 0 40px; }
+.small { font-size: 12.5px; margin: 4px 0 10px; }
+
+/* form extras */
+.form select, .filters select {
+  font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; width: 100%;
+}
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); position: relative; }
+.field input {
+  font: inherit; font-size: 15px; color: var(--text); background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; width: 100%;
+}
+.help {
+  margin: 0; padding: 10px 12px; font-size: 13px; color: var(--muted);
+  background: var(--bg); border: 1px dashed var(--border); border-radius: 8px;
+}
+.help b { color: var(--text); }
+
+/* airport combobox */
+.combo-list {
+  position: absolute; z-index: 20; top: 100%; left: 0; right: 0; margin: 4px 0 0; padding: 4px 0;
+  list-style: none; max-height: 320px; overflow-y: auto; min-width: 280px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+.combo-item { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; align-items: baseline; padding: 7px 12px; cursor: pointer; color: var(--text); font-size: 14px; }
+.combo-item .code { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); }
+.combo-item .country { color: var(--muted); font-size: 12px; }
+.combo-item:hover, .combo-item.active { background: var(--bg); }
+.combo-group { padding: 8px 12px 4px; font-size: 12px; font-weight: 700; color: var(--muted); position: sticky; top: -4px; background: var(--surface); }
+.combo-empty { padding: 10px 12px; color: var(--muted); font-size: 13px; }
+
+/* hotels */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 13.5px;
+  border: 1px solid var(--border); border-radius: 99px; background: var(--bg); cursor: pointer;
+}
+.chip select { width: auto; padding: 2px 6px; border: 0; background: transparent; }
+.hotel-list { list-style: none; margin: 0; padding: 0; }
+.hotel { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.hotel:last-child { border-bottom: 0; }
+.hotel-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hotel-main a { color: var(--text); font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+.hotel-main a:hover { color: var(--accent); }
+.hotel-sub { color: var(--muted); font-size: 13px; }
+.hotel-side { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tag.lodging.capsule { background: #efe7ff; color: #6b3fd1; }
+.tag.lodging.dorm { background: #ffe9e0; color: #b4471b; }
+.tag.lodging.private { background: var(--bg); color: var(--muted); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tag.lodging.capsule { background: #2a2140; color: #c3a8ff; }
+  :root:not([data-theme="light"]) .tag.lodging.dorm { background: #3a2318; color: #ffb38f; }
+}
 @media (max-width: 760px) {
   .grid { grid-template-columns: repeat(2, 1fr); }
   .form { grid-template-columns: 1fr 1fr; }

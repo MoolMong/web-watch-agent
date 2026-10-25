@@ -2,6 +2,7 @@
 // (docs/flights/data/latest.json, history.json). Never books or pays.
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { decide } from "../../core/jev.ts";
+import { tagHotels, type TagCache } from "./hotel-tags.ts";
 
 const root = new URL("../../", import.meta.url);
 const read = async (p: string) => JSON.parse(await readFile(new URL(p, root), "utf8"));
@@ -66,10 +67,32 @@ const buyProbability = act.type === "choice" ? (act.probabilities.buy ?? 0) : 0;
 const hitTarget = config.flight.targetPrice > 0 && f.minPrice <= config.flight.targetPrice;
 const alert = hitTarget || buyProbability >= config.alert.minBuyProbability;
 
+// Hotels: keep only results at or above the guest-rating condition (in case Google's filter
+// didn't apply), then tag each one as capsule / dorm / private with Jev.
+let hotelCost = 0;
+if (scrape.hotel?.list) {
+  const minRating = Number(config.hotel.minRating) || 0;
+  const kept = scrape.hotel.list.filter((h: any) => !minRating || (h.rating ?? 0) >= minRating);
+  let tags: TagCache = {};
+  try { tags = await read("docs/flights/data/hotel-tags.json"); } catch {}
+  try {
+    const r = await tagHotels(kept, tags);
+    hotelCost = r.cost;
+    await write("docs/flights/data/hotel-tags.json", r.cache);
+  } catch (e) {
+    console.error("hotel tagging failed:", (e as Error).message);
+  }
+  scrape.hotel.list = kept.map((h: any) => ({ ...h, tag: tags[h.name]?.tag ?? null, tagConfidence: tags[h.name]?.confidence ?? null }));
+  const prices = kept.map((h: any) => h.price).sort((a: number, b: number) => a - b);
+  scrape.hotel.count = kept.length;
+  scrape.hotel.minPricePerNight = prices[0] ?? null;
+  scrape.hotel.medianPricePerNight = prices.length ? prices[Math.floor(prices.length / 2)] : null;
+}
+
 const latest = {
   ...scrape,
   config,
-  verdict: { model: res.model, isCheap, buyProbability, hitTarget, alert, cost: res.usage.cost },
+  verdict: { model: res.model, isCheap, buyProbability, hitTarget, alert, cost: res.usage.cost + hotelCost },
 };
 history.push({
   checkedAt: scrape.checkedAt, configKey, minPrice: f.minPrice, medianPrice: f.medianPrice,

@@ -1,0 +1,104 @@
+{
+  "2명 숙박 가능한, 침실 1개짜리 집": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.443Z"
+  },
+  "3명 숙박 가능한, 침실 1개짜리 집": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.444Z"
+  },
+  "ONE@Tokyo by insomnia": {
+    "tag": "private",
+    "confidence": 0.86,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.444Z"
+  },
+  "호텔 윙 인터네셔널 셀렉트 아사쿠사 고마가타": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.444Z"
+  },
+  "미쓰이 가든 호텔 고탄다": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.444Z"
+  },
+  "Manga Art Hotel": {
+    "tag": "private",
+    "confidence": 0.76,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.444Z"
+  },
+  "Hotel KOH Asakusa": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.444Z"
+  },
+  "안돈 료칸": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.444Z"
+  },
+  "2명 숙박 가능한, 아파트": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.444Z"
+  },
+  "2명 숙박 가능한, 침실 1개짜리 아파트": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.444Z"
+  },
+  "토세이호텔 코코네 아사쿠사 쿠라마에": {
+    "tag": "private",
+    "confidence": 0.8,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.444Z"
+  },
+  "APA Hotel Asakusa Tawaramachi-Ekimae": {
+    "tag": "private",
+    "confidence": 0.98,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.444Z"
+  },
+  "호텔 그라피 네즈": {
+    "tag": "private",
+    "confidence": 0.98,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.444Z"
+  },
+  "도세이 호텔 코코네 우에노": {
+    "tag": "private",
+    "confidence": 0.88,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.444Z"
+  },
+  "토요코인 기타아사카 에키 니시구치": {
+    "tag": "private",
+    "confidence": 0.98,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.444Z"
+  },
+  "다이와 로이넷 호텔 니시신주쿠": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.885Z"
+  },
+  "&앤드 호스텔 아사쿠사 스테이션": {
+    "tag": "dorm",
+    "confidence": 0.98,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:05:22.885Z"
+  }
+}

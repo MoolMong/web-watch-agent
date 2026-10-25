@@ -2,3 +2,4 @@ watchers/*/.tmp/
 node_modules/
 .env
 .env.*
+.claude/

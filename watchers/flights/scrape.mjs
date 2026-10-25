@@ -57,12 +57,62 @@ if (config.hotel?.enabled) {
     "https://www.google.com/travel/search?q=" +
     encodeURIComponent(`${h.query} ${h.checkIn} to ${h.checkOut}`) +
     `&curr=${f.currency}&hl=ko`;
-  const prices = [...new Set(lines(await load(hotelUrl)).filter((l) => /^₩[\d,]+$/.test(l)).map(num))].sort((a, b) => a - b);
+  let text = await load(hotelUrl);
+
+  // Apply Google's own guest-rating filter (3.5 / 4.0 / 4.5+) before reading results.
+  const minRating = Number(h.minRating) || 0;
+  let ratingFilterApplied = false;
+  if (minRating >= 3.5) {
+    try {
+      const before = text;
+      await page.click("loc=role:button[name='고객 평점, 선택되지 않음']", { label: "open guest rating filter" });
+      await page.click(`input[aria-label='투숙객 평점 ${minRating.toFixed(1)} 이상']`, { label: "pick minimum guest rating" });
+      await page.waitForFunction((b) => document.body.innerText !== b, before, { timeout: 15000 });
+      await page.waitForTimeout(2000);
+      await page.press("body", "Escape");
+      text = await page.evaluate(() => document.body.innerText);
+      ratingFilterApplied = true;
+    } catch (e) {
+      console.log(`rating filter not applied (${e.message.split("\n")[0]}); judge.ts filters by rating instead`);
+    }
+  }
+
+  // Each result card reads: name, [deal label], ₩price, rating, (reviews), ..., "N성급 호텔", amenities, "가격 보기".
+  const hl = lines(text);
+  const deal = /^(파격 할인가|할인 상품|특가|합리적인 가격|최저가|인기.*|.*% 할인)$/;
+  const list = [];
+  for (let i = 0; i < hl.length; i++) {
+    if (!/^₩[\d,]+$/.test(hl[i])) continue;
+    let n = i - 1;
+    while (n >= 0 && deal.test(hl[n])) n--;
+    const name = hl[n];
+    if (!name || /필터|평균 가격|검색결과/.test(name)) continue;
+    // A card ends at "가격 보기" or, when that button is missing, at the next card's price.
+    let end = i + 1;
+    while (end < hl.length && end < i + 25 && hl[end] !== "가격 보기" && !/^₩[\d,]+$/.test(hl[end])) end++;
+    const body = hl.slice(i + 1, end);
+    const rating = /^\d\.\d$/.test(body[0]) ? Number(body[0]) : null;
+    const reviews = /^\(\d[\d,]*\)$/.test(body[1] || "") ? num(body[1]) : null;
+    const starLine = body.find((l) => /^\d성급 호텔$/.test(l));
+    const amenities = body.filter((l) => l.length < 20 && !/^[\d(.·]/.test(l) && l !== starLine && !deal.test(l));
+    list.push({
+      name, price: num(hl[i]), rating, reviews,
+      stars: starLine ? Number(starLine[0]) : null,
+      deal: deal.test(hl[i - 1]) ? hl[i - 1] : null,
+      amenities: amenities.slice(0, 6),
+    });
+  }
+  const seen = new Set();
+  const unique = list.filter((x) => !seen.has(x.name) && seen.add(x.name));
+  const prices = unique.map((x) => x.price).sort((a, b) => a - b);
   hotel = {
     url: hotelUrl,
-    count: prices.length,
+    minRating,
+    ratingFilterApplied,
+    count: unique.length,
     minPricePerNight: prices[0] ?? null,
     medianPricePerNight: prices.length ? prices[Math.floor(prices.length / 2)] : null,
+    list: unique,
   };
 }
 

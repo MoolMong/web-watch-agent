@@ -2,6 +2,11 @@ const $ = (id) => document.getElementById(id);
 const won = (n) => (n == null ? "-" : "₩" + Number(n).toLocaleString("ko-KR"));
 const pct = (p) => (p == null ? "-" : Math.round(p * 100) + "%");
 const when = (iso) => new Date(iso).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
 
 async function getJSON(path) {
   const res = await fetch(`${path}?t=${Date.now()}`);
@@ -9,17 +14,26 @@ async function getJSON(path) {
   return res.json();
 }
 
+// ---- airports ----
+const AIRPORT_BY_CODE = Object.fromEntries(window.AIRPORTS.map((a) => [a[0], a]));
+const COUNTRY_ORDER = Object.keys(window.COUNTRIES);
+function airportLabel(code) {
+  const a = AIRPORT_BY_CODE[code];
+  return a ? `${a[2]} ${a[1]} (${a[0]})` : code;
+}
+
 function renderVerdict(latest) {
   const v = latest.verdict;
   const el = $("verdict");
   el.className = "card verdict " + (v.alert ? "buy" : "wait");
-  const links = [`<a class="button" href="${latest.flight.url}" target="_blank" rel="noopener">구글 항공권에서 보기</a>`];
-  if (latest.hotel) links.push(`<a class="button ghost" href="${latest.hotel.url}" target="_blank" rel="noopener">호텔 보기</a>`);
+  const links = [`<a class="button" href="${esc(latest.flight.url)}" target="_blank" rel="noopener">구글 항공권에서 보기</a>`];
+  if (latest.hotel) links.push(`<a class="button ghost" href="${esc(latest.hotel.url)}" target="_blank" rel="noopener">호텔 보기</a>`);
+  const threshold = Math.round((latest.config.alert?.minBuyProbability ?? 0.7) * 100);
   el.innerHTML = `
     <div class="badge">${v.alert ? "지금 구매 추천" : "기다리세요"}</div>
     <div class="body">
-      <p>Jev 판단: 저렴함 <b>${pct(v.isCheap)}</b> · 지금 구매 <b>${pct(v.buyProbability)}</b>${v.hitTarget ? " · <b>목표가 도달</b>" : ""}</p>
-      <p class="muted">${v.alert ? "링크에서 직접 확인하고 결제하세요. 자동 결제는 하지 않습니다." : "가격이 더 내려가면 이 화면이 바뀝니다."}</p>
+      <p>Jev 판단: 저렴함 <b>${pct(v.isCheap)}</b> · 지금 구매 <b>${pct(v.buyProbability)}</b> <span class="muted">(알림 기준 ${threshold}%)</span>${v.hitTarget ? " · <b>목표가 도달</b>" : ""}</p>
+      <p class="muted">${v.alert ? "링크에서 직접 확인하고 결제하세요. 자동 결제는 하지 않습니다." : "구매 확률이 알림 기준을 넘거나 목표가에 닿으면 이 화면이 바뀝니다."}</p>
     </div>
     <div class="actions">${links.join("")}</div>`;
 }
@@ -34,8 +48,8 @@ function renderStats(latest) {
     const gap = f.minPrice - c.targetPrice;
     $("s-gap").textContent = gap <= 0 ? "목표가 이하" : `목표까지 ${won(gap)}`;
   }
-  $("s-hotel").textContent = latest.hotel ? won(latest.hotel.minPricePerNight) : "확인 안 함";
-  $("trip").textContent = `${c.origin} → ${c.destination} · ${c.departDate}${c.returnDate ? " ~ " + c.returnDate : " 편도"} · 성인 ${c.adults}`;
+  if (!latest.hotel) $("s-hotel").textContent = "확인 안 함";
+  $("trip").textContent = `${airportLabel(c.origin)} → ${airportLabel(c.destination)} · ${c.departDate}${c.returnDate ? " ~ " + c.returnDate : " 편도"} · 성인 ${c.adults}`;
   $("insight").textContent = f.googleInsight ? "Google: " + f.googleInsight : "";
   $("updated").textContent = ` 마지막 확인: ${new Date(latest.checkedAt).toLocaleString("ko-KR")}`;
 }
@@ -76,6 +90,126 @@ function renderRows(points) {
     || `<tr><td colspan="5" class="muted">아직 기록이 없습니다.</td></tr>`;
 }
 
+// ---- hotels ----
+const TAG_LABEL = { capsule: "캡슐호텔", dorm: "공유방", private: "개인실" };
+
+function renderHotels(latest) {
+  const h = latest.hotel;
+  if (!h?.list) return;
+  $("hotel-card").hidden = false;
+  const c = latest.config.hotel || {};
+  const exCapsule = $("ex-capsule"), exDorm = $("ex-dorm"), sort = $("hotel-sort");
+  exCapsule.checked = store.get("ex-capsule", false);
+  exDorm.checked = store.get("ex-dorm", false);
+  sort.value = store.get("hotel-sort", "price");
+
+  const draw = () => {
+    store.set("ex-capsule", exCapsule.checked);
+    store.set("ex-dorm", exDorm.checked);
+    store.set("hotel-sort", sort.value);
+    const shown = h.list
+      .filter((x) => !(exCapsule.checked && x.tag === "capsule") && !(exDorm.checked && x.tag === "dorm"))
+      .sort((a, b) => sort.value === "rating" ? (b.rating ?? 0) - (a.rating ?? 0) || a.price - b.price : a.price - b.price);
+    const hidden = h.list.length - shown.length;
+    $("hotel-meta").textContent = `${esc(c.query || "")} · ${c.minRating ? `평점 ${Number(c.minRating).toFixed(1)} 이상 · ` : ""}${shown.length}곳${hidden ? ` (${hidden}곳 숨김)` : ""}`;
+    $("s-hotel").textContent = shown.length ? won(Math.min(...shown.map((x) => x.price))) : "-";
+    $("hotels").innerHTML = shown.map((x) => {
+      const q = encodeURIComponent(`${x.name} ${c.checkIn || ""} to ${c.checkOut || ""}`);
+      const tag = x.tag ? `<span class="tag lodging ${x.tag}" title="Jev 확신도 ${pct(x.tagConfidence)}">${TAG_LABEL[x.tag] || x.tag}</span>` : "";
+      return `<li class="hotel">
+        <div class="hotel-main">
+          <a href="https://www.google.com/travel/search?q=${q}&hl=ko&curr=KRW" target="_blank" rel="noopener">${esc(x.name)}</a>
+          <span class="hotel-sub">${x.rating != null ? `★ ${x.rating.toFixed(1)}` : "평점 없음"}${x.reviews ? ` (${x.reviews.toLocaleString("ko-KR")})` : ""}${x.stars ? ` · ${x.stars}성급` : ""}${x.deal ? ` · ${esc(x.deal)}` : ""}</span>
+        </div>
+        <div class="hotel-side">${tag}<b>${won(x.price)}</b></div>
+      </li>`;
+    }).join("") || `<li class="muted">조건에 맞는 숙소가 없습니다.</li>`;
+  };
+  [exCapsule, exDorm, sort].forEach((el) => el.addEventListener("change", draw));
+  draw();
+}
+
+// ---- airport combobox ----
+function searchAirports(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return null;
+  const hits = window.AIRPORTS.filter(([code, name, cityKo, cityEn, cc]) => {
+    const country = window.COUNTRIES[cc] || [];
+    return [code, name, cityKo, cityEn, ...country].join(" ").toLowerCase().includes(q);
+  });
+  return hits.sort((a, b) => (b[0].toLowerCase() === q) - (a[0].toLowerCase() === q) || b[5] - a[5]);
+}
+
+function setupCombo(field, initial) {
+  const box = document.querySelector(`.combo[data-field="${field}"]`);
+  const input = box.querySelector("[role=combobox]");
+  const hidden = box.querySelector("input[type=hidden]");
+  const list = box.querySelector("[role=listbox]");
+  let items = [], active = -1;
+
+  const choose = (code) => {
+    hidden.value = code;
+    input.value = airportLabel(code);
+    close();
+    updatePreview();
+  };
+  const close = () => { list.hidden = true; input.setAttribute("aria-expanded", "false"); active = -1; };
+  const row = (a, i) => `<li role="option" id="${field}-opt-${i}" data-code="${a[0]}" class="combo-item">
+      <span class="code">${a[0]}</span><span class="name">${esc(a[2])} · ${esc(a[1])}</span><span class="country">${esc(window.COUNTRIES[a[4]]?.[0] || "")}</span></li>`;
+  const open = () => {
+    const hits = searchAirports(input.value === airportLabel(hidden.value) ? "" : input.value);
+    let html;
+    if (hits) {
+      items = hits.slice(0, 40);
+      html = items.map(row).join("") || `<li class="combo-empty">결과 없음. 공항 코드(예: NRT)로도 찾을 수 있습니다.</li>`;
+    } else {
+      // No query: every country in order, airports by size within it.
+      items = [];
+      html = COUNTRY_ORDER.map((cc) => {
+        const group = window.AIRPORTS.filter((a) => a[4] === cc).sort((a, b) => b[5] - a[5]);
+        if (!group.length) return "";
+        const start = items.length;
+        items.push(...group);
+        return `<li class="combo-group" role="presentation">${esc(window.COUNTRIES[cc][0])}</li>` + group.map((a, j) => row(a, start + j)).join("");
+      }).join("");
+    }
+    list.innerHTML = html;
+    list.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+    active = -1;
+  };
+  const highlight = (i) => {
+    const opts = list.querySelectorAll("[role=option]");
+    if (!opts.length) return;
+    active = (i + opts.length) % opts.length;
+    opts.forEach((o, k) => o.classList.toggle("active", k === active));
+    opts[active].scrollIntoView({ block: "nearest" });
+    input.setAttribute("aria-activedescendant", opts[active].id);
+  };
+
+  input.addEventListener("focus", () => { input.select(); open(); });
+  input.addEventListener("click", open);
+  input.addEventListener("input", open);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); if (list.hidden) open(); highlight(active + 1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); highlight(active - 1); }
+    else if (e.key === "Enter" && !list.hidden) {
+      e.preventDefault();
+      const opts = list.querySelectorAll("[role=option]");
+      const pick = opts[active >= 0 ? active : 0];
+      if (pick) choose(pick.dataset.code);
+    } else if (e.key === "Escape") { close(); input.value = airportLabel(hidden.value); }
+  });
+  list.addEventListener("mousedown", (e) => {
+    const li = e.target.closest("[role=option]");
+    if (li) { e.preventDefault(); choose(li.dataset.code); }
+  });
+  input.addEventListener("blur", () => { close(); input.value = airportLabel(hidden.value); });
+
+  hidden.value = initial;
+  input.value = airportLabel(initial);
+}
+
 // ---- config form ----
 function repoInfo() {
   const m = location.hostname.match(/^([^.]+)\.github\.io$/);
@@ -83,20 +217,28 @@ function repoInfo() {
   return m && repo ? { owner: m[1], repo } : null;
 }
 
+function setSelect(select, value) {
+  const v = String(value);
+  if (![...select.options].some((o) => o.value === v)) select.add(new Option(`${v}`, v));
+  select.value = v;
+}
+
 function fillForm(cfg) {
   const f = $("cfg").elements, c = cfg.flight, h = cfg.hotel || {};
-  f.origin.value = c.origin; f.destination.value = c.destination;
+  setupCombo("origin", c.origin);
+  setupCombo("destination", c.destination);
   f.departDate.value = c.departDate; f.returnDate.value = c.returnDate || "";
   f.adults.value = c.adults; f.targetPrice.value = c.targetPrice;
-  f.minBuy.value = Math.round((cfg.alert?.minBuyProbability ?? 0.7) * 100);
+  setSelect(f.minBuy, Math.round((cfg.alert?.minBuyProbability ?? 0.7) * 100));
   f.hotelEnabled.checked = !!h.enabled; f.hotelQuery.value = h.query || "";
+  setSelect(f.minRating, Number(h.minRating) || 0);
 }
 
 function buildConfig() {
   const f = $("cfg").elements;
   const flight = {
-    origin: f.origin.value.trim().toUpperCase(),
-    destination: f.destination.value.trim().toUpperCase(),
+    origin: f.origin.value,
+    destination: f.destination.value,
     departDate: f.departDate.value,
     returnDate: f.returnDate.value,
     adults: Number(f.adults.value),
@@ -105,7 +247,10 @@ function buildConfig() {
   };
   return {
     flight,
-    hotel: { enabled: f.hotelEnabled.checked, query: f.hotelQuery.value.trim(), checkIn: flight.departDate, checkOut: flight.returnDate },
+    hotel: {
+      enabled: f.hotelEnabled.checked, query: f.hotelQuery.value.trim(),
+      checkIn: flight.departDate, checkOut: flight.returnDate, minRating: Number(f.minRating.value),
+    },
     alert: { minBuyProbability: Number(f.minBuy.value) / 100 },
   };
 }
@@ -116,6 +261,7 @@ function setupForm(cfg) {
   fillForm(cfg);
   updatePreview();
   $("cfg").addEventListener("input", updatePreview);
+  $("cfg").addEventListener("change", updatePreview);
   const info = repoInfo();
   const link = $("edit-link");
   if (info) link.href = `https://github.com/${info.owner}/${info.repo}/edit/main/docs/flights/config.json`;
@@ -139,6 +285,7 @@ function setupForm(cfg) {
     renderStats(latest);
     renderChart(points, latest.config.flight.targetPrice);
     renderRows(points);
+    renderHotels(latest);
     if (cfg && JSON.stringify(latest.config.flight) !== key) {
       $("insight").textContent = "조건이 바뀌었습니다. 다음 확인부터 새 조건으로 기록됩니다.";
     }

@@ -1,10 +1,10 @@
 {
-  "checkedAt": "2026-10-25T14:51:56.557Z",
+  "checkedAt": "2026-10-25T15:05:21.042Z",
   "flight": {
     "url": "https://www.google.com/travel/flights?q=Flights%20to%20NRT%20from%20ICN%20on%202026-12-10%20through%202026-12-14&curr=KRW&hl=ko",
     "count": 38,
     "minPrice": 313246,
-    "medianPrice": 361500,
+    "medianPrice": 361000,
     "cheapest": [
       {
         "airline": "에어서울",
@@ -23,9 +23,296 @@
   },
   "hotel": {
     "url": "https://www.google.com/travel/search?q=Tokyo%20hotels%202026-12-10%20to%202026-12-14&curr=KRW&hl=ko",
-    "count": 18,
+    "minRating": 4,
+    "ratingFilterApplied": true,
+    "count": 17,
     "minPricePerNight": 54806,
-    "medianPricePerNight": 84806
+    "medianPricePerNight": 89536,
+    "list": [
+      {
+        "name": "2명 숙박 가능한, 침실 1개짜리 집",
+        "price": 66565,
+        "rating": 5,
+        "reviews": 2,
+        "stars": null,
+        "deal": null,
+        "amenities": [
+          "주택",
+          "침실 1개",
+          "욕실 1개",
+          "침대 2개",
+          "에어컨",
+          "무료 Wi-Fi"
+        ],
+        "tag": "private",
+        "tagConfidence": 1
+      },
+      {
+        "name": "3명 숙박 가능한, 침실 1개짜리 집",
+        "price": 81041,
+        "rating": 4.5,
+        "reviews": 16,
+        "stars": null,
+        "deal": null,
+        "amenities": [
+          "주택",
+          "침실 1개",
+          "욕실 1개",
+          "침대 2개",
+          "에어컨",
+          "유아용 침대"
+        ],
+        "tag": "private",
+        "tagConfidence": 1
+      },
+      {
+        "name": "ONE@Tokyo by insomnia",
+        "price": 169027,
+        "rating": 4.3,
+        "reviews": null,
+        "stars": 3,
+        "deal": null,
+        "amenities": [
+          "위치가 훌륭함",
+          "무료 Wi-Fi",
+          "주차 가능",
+          "휠체어 사용 가능",
+          "유아 동반 환영"
+        ],
+        "tag": "private",
+        "tagConfidence": 0.86
+      },
+      {
+        "name": "호텔 윙 인터네셔널 셀렉트 아사쿠사 고마가타",
+        "price": 142017,
+        "rating": 4.3,
+        "reviews": 863,
+        "stars": 3,
+        "deal": "파격 할인가",
+        "amenities": [
+          "위치가 훌륭함",
+          "무료 Wi-Fi",
+          "주차 가능",
+          "유아 동반 환영"
+        ],
+        "tag": "private",
+        "tagConfidence": 1
+      },
+      {
+        "name": "미쓰이 가든 호텔 고탄다",
+        "price": 188053,
+        "rating": 4.3,
+        "reviews": null,
+        "stars": 4,
+        "deal": "파격 할인가",
+        "amenities": [
+          "환경 보호 인증",
+          "공중목욕탕",
+          "노천탕",
+          "무료 Wi-Fi",
+          "주차 가능",
+          "레스토랑"
+        ],
+        "tag": "private",
+        "tagConfidence": 1
+      },
+      {
+        "name": "Manga Art Hotel",
+        "price": 77312,
+        "rating": 4,
+        "reviews": 283,
+        "stars": 2,
+        "deal": null,
+        "amenities": [
+          "무료 Wi-Fi",
+          "주차 가능"
+        ],
+        "tag": "private",
+        "tagConfidence": 0.76
+      },
+      {
+        "name": "Hotel KOH Asakusa",
+        "price": 81262,
+        "rating": 4.1,
+        "reviews": 121,
+        "stars": 4,
+        "deal": "할인 상품",
+        "amenities": [
+          "무료 Wi-Fi",
+          "주차 가능"
+        ],
+        "tag": "private",
+        "tagConfidence": 1
+      },
+      {
+        "name": "안돈 료칸",
+        "price": 89536,
+        "rating": 4.6,
+        "reviews": 361,
+        "stars": 2,
+        "deal": null,
+        "amenities": [
+          "전용 욕실",
+          "무료 Wi-Fi",
+          "주차 가능",
+          "바",
+          "레스토랑"
+        ],
+        "tag": "private",
+        "tagConfidence": 1
+      },
+      {
+        "name": "2명 숙박 가능한, 아파트",
+        "price": 89030,
+        "rating": 4.5,
+        "reviews": 88,
+        "stars": null,
+        "deal": null,
+        "amenities": [
+          "아파트",
+          "침실 1개",
+          "욕실 1개",
+          "침대 1개",
+          "에어컨",
+          "유아 동반 환영"
+        ],
+        "tag": "private",
+        "tagConfidence": 1
+      },
+      {
+        "name": "2명 숙박 가능한, 침실 1개짜리 아파트",
+        "price": 72726,
+        "rating": 4.6,
+        "reviews": 80,
+        "stars": null,
+        "deal": null,
+        "amenities": [
+          "아파트",
+          "침실 1개",
+          "욕실 1개",
+          "침대 1개",
+          "에어컨",
+          "유아용 침대 없음"
+        ],
+        "tag": "private",
+        "tagConfidence": 1
+      },
+      {
+        "name": "토세이호텔 코코네 아사쿠사 쿠라마에",
+        "price": 135283,
+        "rating": 4.1,
+        "reviews": 481,
+        "stars": 3,
+        "deal": null,
+        "amenities": [
+          "공중목욕탕",
+          "무료 Wi-Fi",
+          "레스토랑",
+          "휠체어 사용 가능"
+        ],
+        "tag": "private",
+        "tagConfidence": 0.8
+      },
+      {
+        "name": "APA Hotel Asakusa Tawaramachi-Ekimae",
+        "price": 133999,
+        "rating": 4.1,
+        "reviews": null,
+        "stars": 3,
+        "deal": null,
+        "amenities": [
+          "위치가 훌륭함",
+          "공중목욕탕",
+          "노천탕",
+          "무료 Wi-Fi",
+          "유료 주차",
+          "레스토랑"
+        ],
+        "tag": "private",
+        "tagConfidence": 0.98
+      },
+      {
+        "name": "호텔 그라피 네즈",
+        "price": 111038,
+        "rating": 4.3,
+        "reviews": 839,
+        "stars": 3,
+        "deal": null,
+        "amenities": [
+          "무료 Wi-Fi",
+          "주차 가능",
+          "바",
+          "레스토랑",
+          "유아 동반 환영"
+        ],
+        "tag": "private",
+        "tagConfidence": 0.98
+      },
+      {
+        "name": "도세이 호텔 코코네 우에노",
+        "price": 168270,
+        "rating": 4.2,
+        "reviews": 716,
+        "stars": 3,
+        "deal": null,
+        "amenities": [
+          "위치가 훌륭함",
+          "무료 Wi-Fi",
+          "레스토랑",
+          "휠체어 사용 가능"
+        ],
+        "tag": "private",
+        "tagConfidence": 0.88
+      },
+      {
+        "name": "토요코인 기타아사카 에키 니시구치",
+        "price": 89308,
+        "rating": 4.2,
+        "reviews": 238,
+        "stars": 3,
+        "deal": null,
+        "amenities": [
+          "무료 Wi-Fi",
+          "유료 주차",
+          "휠체어 사용 가능",
+          "유아 동반 환영"
+        ],
+        "tag": "private",
+        "tagConfidence": 0.98
+      },
+      {
+        "name": "다이와 로이넷 호텔 니시신주쿠",
+        "price": 210557,
+        "rating": 4.4,
+        "reviews": null,
+        "stars": 4,
+        "deal": "할인 상품",
+        "amenities": [
+          "환경 보호 인증",
+          "무료 Wi-Fi",
+          "유료 주차",
+          "레스토랑",
+          "휠체어 사용 가능",
+          "유아 동반 환영"
+        ],
+        "tag": "private",
+        "tagConfidence": 1
+      },
+      {
+        "name": "&앤드 호스텔 아사쿠사 스테이션",
+        "price": 54806,
+        "rating": 4.4,
+        "reviews": 356,
+        "stars": 2,
+        "deal": null,
+        "amenities": [
+          "무료 Wi-Fi",
+          "주차 가능"
+        ],
+        "tag": "dorm",
+        "tagConfidence": 0.98
+      }
+    ]
   },
   "config": {
     "flight": {
@@ -41,7 +328,8 @@
       "enabled": true,
       "query": "Tokyo hotels",
       "checkIn": "2026-12-10",
-      "checkOut": "2026-12-14"
+      "checkOut": "2026-12-14",
+      "minRating": 4
     },
     "alert": {
       "minBuyProbability": 0.7
@@ -53,6 +341,6 @@
     "buyProbability": 0.74,
     "hitTarget": false,
     "alert": true,
-    "cost": 0.000024948
+    "cost": 0.000250446
   }
 }

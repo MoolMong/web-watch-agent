@@ -12,7 +12,8 @@
     "enabled": true,
     "query": "Tokyo hotels",
     "checkIn": "2026-12-10",
-    "checkOut": "2026-12-14"
+    "checkOut": "2026-12-14",
+    "minRating": 4
   },
   "alert": {
     "minBuyProbability": 0.7
