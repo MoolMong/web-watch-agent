@@ -1,8 +1,8 @@
 {
-  "checkedAt": "2026-10-25T14:32:39.394Z",
+  "checkedAt": "2026-10-25T14:50:35.020Z",
   "flight": {
     "url": "https://www.google.com/travel/flights?q=Flights%20to%20NRT%20from%20ICN%20on%202026-12-10%20through%202026-12-14&curr=KRW&hl=ko",
-    "count": 35,
+    "count": 38,
     "minPrice": 313246,
     "medianPrice": 364246,
     "cheapest": [
@@ -19,13 +19,13 @@
         "price": 317346
       }
     ],
-    "googleInsight": ""
+    "googleInsight": "가격이 현재 저렴하며 이 검색에서 평소보다 ₩70,954 저렴합니다."
   },
   "hotel": {
     "url": "https://www.google.com/travel/search?q=Tokyo%20hotels%202026-12-10%20to%202026-12-14&curr=KRW&hl=ko",
     "count": 18,
-    "minPricePerNight": 76941,
-    "medianPricePerNight": 92735
+    "minPricePerNight": 54806,
+    "medianPricePerNight": 84806
   },
   "config": {
     "flight": {
@@ -49,10 +49,10 @@
   },
   "verdict": {
     "model": "typesafe/jev-1.14-20261014",
-    "isCheap": 0.68,
-    "buyProbability": 0.46,
+    "isCheap": 0.93,
+    "buyProbability": 0.72,
     "hitTarget": false,
-    "alert": false,
-    "cost": 0.000023604
+    "alert": true,
+    "cost": 0.000024948
   }
 }
