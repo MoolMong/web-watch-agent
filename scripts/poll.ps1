@@ -1,4 +1,4 @@
-# Handles "지금 검색" requests from the dashboard. The page opens a GitHub issue titled
+﻿# Handles "지금 검색" requests from the dashboard. The page opens a GitHub issue titled
 # "[run] <watcher>" with label "run" (and optionally a ```json config block). This script,
 # run every few minutes by the scheduler, picks up the newest open request from the repo
 # owner, applies the config, runs the watcher immediately, comments the result and closes it.
@@ -7,9 +7,14 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")
 $utf8 = New-Object Text.UTF8Encoding $false
+# If a previous poll is still handling a request, let it finish instead of picking it up twice.
+$pollMutex = New-Object Threading.Mutex($false, "Local\WebWatchAgentPoll")
+try { if (-not $pollMutex.WaitOne(0)) { exit 0 } } catch [Threading.AbandonedMutexException] {}
 Push-Location $root
 try {
-  $issues = @(gh issue list --label run --state open --json number,title,body,author --limit 20 | ConvertFrom-Json)
+  # PowerShell 5.1's ConvertFrom-Json emits a JSON array as one object; unroll it.
+  $json = (gh issue list --label run --state open --json number,title,body,author --limit 20) -join ""
+  $issues = @(($json | ConvertFrom-Json) | ForEach-Object { $_ })
   if ($issues.Count -eq 0) { exit 0 }
   $owner = gh repo view --json owner --jq .owner.login
   $pages = gh api "repos/{owner}/{repo}/pages" --jq .html_url

@@ -1,4 +1,4 @@
-# One check for one watcher: pull latest config -> watchers\<name>\scrape.mjs (ego-browser)
+﻿# One check for one watcher: pull latest config -> watchers\<name>\scrape.mjs (ego-browser)
 # -> watchers\<name>\judge.ts (Jev via OpenRouter) -> commit and push docs\<name>\data so the
 # GitHub Pages dashboard updates. Never books or pays.
 # Usage: powershell -ExecutionPolicy Bypass -File scripts\run.ps1 -Watcher flights [-NoPush]

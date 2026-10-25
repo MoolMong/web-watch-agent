@@ -1,4 +1,4 @@
-# Registers the Windows scheduled tasks (they run only while you are logged on, because
+﻿# Registers the Windows scheduled tasks (they run only while you are logged on, because
 # ego lite needs your desktop session; windows stay hidden via hidden.vbs):
 #   WebWatchAgent-<watcher>  runs scripts\run.ps1 every N hours
 #   WebWatchAgent-requests   runs scripts\poll.ps1 every 2 minutes for dashboard "지금 검색" requests
