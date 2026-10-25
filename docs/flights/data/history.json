@@ -88,5 +88,15 @@
     "isCheap": 0.92,
     "buyProbability": 0.72,
     "alert": true
+  },
+  {
+    "checkedAt": "2026-10-25T15:22:33.123Z",
+    "configKey": "{\"origin\":\"ICN\",\"destination\":\"FUK\",\"departDate\":\"2026-11-06\",\"returnDate\":\"2026-11-08\",\"adults\":1,\"currency\":\"KRW\",\"targetPrice\":300000}",
+    "minPrice": 490700,
+    "medianPrice": 568900,
+    "hotelMinPerNight": 192954,
+    "isCheap": 0.1,
+    "buyProbability": 0.11,
+    "alert": false
   }
 ]

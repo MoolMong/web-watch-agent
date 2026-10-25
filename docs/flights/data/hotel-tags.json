@@ -124,5 +124,101 @@
     "confidence": 0.92,
     "model": "typesafe/jev-1.14-20261014",
     "taggedAt": "2026-10-25T15:14:27.722Z"
+  },
+  "호텔 포르자 하카타역 치쿠시구치Ⅱ": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.321Z"
+  },
+  "하카타 엑셀 호텔 도큐": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.322Z"
+  },
+  "호텔 포르자 하카타역 치쿠시구치Ⅰ 숙소": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.322Z"
+  },
+  "FFFFFF Hotel": {
+    "tag": "private",
+    "confidence": 0.94,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.322Z"
+  },
+  "위베이스 하카다": {
+    "tag": "private",
+    "confidence": 0.76,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.322Z"
+  },
+  "The BREAKFAST HOTEL 후쿠오카 텐진": {
+    "tag": "private",
+    "confidence": 0.98,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.322Z"
+  },
+  "미쓰이 가든 호텔 후쿠오카 기온": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.322Z"
+  },
+  "Grand Residence Hotel Hakata Premier": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.322Z"
+  },
+  "더 블라섬 하카타 프리미어": {
+    "tag": "private",
+    "confidence": 0.97,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.322Z"
+  },
+  "KOKO HOTEL 하카타 신칸센구치": {
+    "tag": "private",
+    "confidence": 0.95,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.322Z"
+  },
+  "다이와 로이넷 호텔 하카타 레이센 프리미어": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.322Z"
+  },
+  "호텔 오리엔탈 익스프레스 후쿠오카 나카스카와바타": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.322Z"
+  },
+  "더 로얄 파크 캔버스 후쿠오카 나카스": {
+    "tag": "private",
+    "confidence": 0.97,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.322Z"
+  },
+  "プレミアージュ美野島": {
+    "tag": "private",
+    "confidence": 0.94,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.322Z"
+  },
+  "비아인 하카타구치에키마에": {
+    "tag": "private",
+    "confidence": 0.97,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.322Z"
+  },
+  "니시테츠 호텔 크룸 하카타": {
+    "tag": "private",
+    "confidence": 0.94,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:22:34.692Z"
   }
 }

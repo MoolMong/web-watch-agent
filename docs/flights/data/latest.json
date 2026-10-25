@@ -1,225 +1,142 @@
 {
-  "checkedAt": "2026-10-25T15:18:28.834Z",
+  "checkedAt": "2026-10-25T15:22:33.123Z",
   "flight": {
-    "url": "https://www.google.com/travel/flights?q=Flights%20to%20NRT%20from%20ICN%20on%202026-12-10%20through%202026-12-14&curr=KRW&hl=ko",
-    "count": 38,
-    "minPrice": 313246,
-    "medianPrice": 361086,
+    "url": "https://www.google.com/travel/flights?q=Flights%20to%20FUK%20from%20ICN%20on%202026-11-06%20through%202026-11-08&curr=KRW&hl=ko",
+    "count": 16,
+    "minPrice": 490700,
+    "medianPrice": 568900,
     "cheapest": [
       {
-        "airline": "에어서울",
-        "price": 313246
+        "airline": "진에어대한항공",
+        "price": 490700
       },
       {
-        "airline": "ZIPAIR Tokyo",
-        "price": 317346
+        "airline": "Trinity Airways",
+        "price": 522900
       },
       {
-        "airline": "ZIPAIR Tokyo",
-        "price": 317346
+        "airline": "아시아나항공대한항공",
+        "price": 537500
       }
     ],
-    "googleInsight": "가격이 현재 저렴하며 이 검색에서 평소보다 ₩70,954 저렴합니다."
+    "googleInsight": ""
   },
   "hotel": {
-    "url": "https://www.google.com/travel/search?q=Tokyo%20hotels%202026-12-10%20to%202026-12-14&curr=KRW&hl=ko",
+    "url": "https://www.google.com/travel/search?q=hakata%20hotels%202026-11-06%20to%202026-11-08&curr=KRW&hl=ko",
     "minRating": 4,
     "ratingFilterApplied": true,
-    "count": 17,
-    "minPricePerNight": 54806,
-    "medianPricePerNight": 89536,
+    "count": 16,
+    "minPricePerNight": 192954,
+    "medianPricePerNight": 248532,
     "list": [
       {
-        "name": "2명 숙박 가능한, 침실 1개짜리 집",
-        "price": 66565,
-        "rating": 5,
-        "reviews": 2,
-        "stars": null,
-        "deal": null,
-        "amenities": [
-          "주택",
-          "침실 1개",
-          "욕실 1개",
-          "침대 2개",
-          "에어컨",
-          "무료 Wi-Fi"
-        ],
-        "tag": "private",
-        "tagConfidence": 1
-      },
-      {
-        "name": "3명 숙박 가능한, 침실 1개짜리 집",
-        "price": 81041,
-        "rating": 4.5,
-        "reviews": 16,
-        "stars": null,
-        "deal": null,
-        "amenities": [
-          "주택",
-          "침실 1개",
-          "욕실 1개",
-          "침대 2개",
-          "에어컨",
-          "유아용 침대"
-        ],
-        "tag": "private",
-        "tagConfidence": 1
-      },
-      {
-        "name": "ONE@Tokyo by insomnia",
-        "price": 169027,
+        "name": "호텔 포르자 하카타역 치쿠시구치Ⅱ",
+        "price": 241069,
         "rating": 4.3,
-        "reviews": null,
-        "stars": 3,
-        "deal": null,
-        "amenities": [
-          "위치가 훌륭함",
-          "무료 Wi-Fi",
-          "주차 가능",
-          "휠체어 사용 가능",
-          "유아 동반 환영"
-        ],
-        "tag": "private",
-        "tagConfidence": 0.86
-      },
-      {
-        "name": "호텔 윙 인터네셔널 셀렉트 아사쿠사 고마가타",
-        "price": 142017,
-        "rating": 4.3,
-        "reviews": 863,
+        "reviews": 546,
         "stars": 3,
         "deal": "파격 할인가",
         "amenities": [
           "위치가 훌륭함",
           "무료 Wi-Fi",
           "주차 가능",
+          "레스토랑",
+          "휠체어 사용 가능",
           "유아 동반 환영"
         ],
         "tag": "private",
         "tagConfidence": 1
       },
       {
-        "name": "Manga Art Hotel",
-        "price": 77312,
-        "rating": 4,
-        "reviews": 283,
-        "stars": 2,
+        "name": "하카타 엑셀 호텔 도큐",
+        "price": 225049,
+        "rating": 4.1,
+        "reviews": null,
+        "stars": 4,
+        "deal": "할인 상품",
+        "amenities": [
+          "환경 보호 인증",
+          "무료 Wi-Fi",
+          "유료 주차",
+          "레스토랑",
+          "휠체어 사용 가능",
+          "유아 동반 환영"
+        ],
+        "tag": "private",
+        "tagConfidence": 1
+      },
+      {
+        "name": "호텔 포르자 하카타역 치쿠시구치Ⅰ 숙소",
+        "price": 244498,
+        "rating": 4.1,
+        "reviews": null,
+        "stars": 3,
         "deal": null,
         "amenities": [
+          "위치가 훌륭함",
           "무료 Wi-Fi",
-          "주차 가능"
+          "주차 가능",
+          "레스토랑",
+          "휠체어 사용 가능",
+          "유아 동반 환영"
+        ],
+        "tag": "private",
+        "tagConfidence": 1
+      },
+      {
+        "name": "FFFFFF Hotel",
+        "price": 219595,
+        "rating": 4.1,
+        "reviews": 170,
+        "stars": 4,
+        "deal": "합리적인 가격",
+        "amenities": [
+          "무료 Wi-Fi"
+        ],
+        "tag": "private",
+        "tagConfidence": 0.94
+      },
+      {
+        "name": "위베이스 하카다",
+        "price": 192954,
+        "rating": 4.5,
+        "reviews": 576,
+        "stars": 2,
+        "deal": "합리적인 가격",
+        "amenities": [
+          "위치가 훌륭함",
+          "무료 Wi-Fi",
+          "주차 가능",
+          "휠체어 사용 가능",
+          "유아 동반 환영"
         ],
         "tag": "private",
         "tagConfidence": 0.76
       },
       {
-        "name": "Hotel KOH Asakusa",
-        "price": 81262,
+        "name": "The BREAKFAST HOTEL 후쿠오카 텐진",
+        "price": 202954,
         "rating": 4.1,
-        "reviews": 121,
-        "stars": 4,
-        "deal": "할인 상품",
+        "reviews": null,
+        "stars": 3,
+        "deal": "파격 할인가",
         "amenities": [
+          "위치가 훌륭함",
           "무료 Wi-Fi",
-          "주차 가능"
+          "유료 주차",
+          "휠체어 사용 가능",
+          "한국 여행객에게 인기 있음"
         ],
         "tag": "private",
-        "tagConfidence": 1
+        "tagConfidence": 0.98
       },
       {
-        "name": "안돈 료칸",
-        "price": 89536,
-        "rating": 4.6,
-        "reviews": 361,
-        "stars": 2,
-        "deal": null,
-        "amenities": [
-          "전용 욕실",
-          "무료 Wi-Fi",
-          "주차 가능",
-          "바",
-          "레스토랑"
-        ],
-        "tag": "private",
-        "tagConfidence": 1
-      },
-      {
-        "name": "미쓰이 가든 호텔 고탄다",
-        "price": 178777,
+        "name": "미쓰이 가든 호텔 후쿠오카 기온",
+        "price": 336744,
         "rating": 4.3,
         "reviews": null,
         "stars": 4,
-        "deal": null,
-        "amenities": [
-          "환경 보호 인증",
-          "공중목욕탕",
-          "노천탕",
-          "무료 Wi-Fi",
-          "주차 가능",
-          "레스토랑"
-        ],
-        "tag": "private",
-        "tagConfidence": 1
-      },
-      {
-        "name": "2명 숙박 가능한, 아파트",
-        "price": 89030,
-        "rating": 4.5,
-        "reviews": 88,
-        "stars": null,
-        "deal": null,
-        "amenities": [
-          "아파트",
-          "침실 1개",
-          "욕실 1개",
-          "침대 1개",
-          "에어컨",
-          "유아 동반 환영"
-        ],
-        "tag": "private",
-        "tagConfidence": 1
-      },
-      {
-        "name": "2명 숙박 가능한, 침실 1개짜리 아파트",
-        "price": 72726,
-        "rating": 4.6,
-        "reviews": 80,
-        "stars": null,
-        "deal": null,
-        "amenities": [
-          "아파트",
-          "침실 1개",
-          "욕실 1개",
-          "침대 1개",
-          "에어컨",
-          "유아용 침대 없음"
-        ],
-        "tag": "private",
-        "tagConfidence": 1
-      },
-      {
-        "name": "토세이호텔 코코네 아사쿠사 쿠라마에",
-        "price": 135283,
-        "rating": 4.1,
-        "reviews": 481,
-        "stars": 3,
-        "deal": null,
-        "amenities": [
-          "공중목욕탕",
-          "무료 Wi-Fi",
-          "레스토랑",
-          "휠체어 사용 가능"
-        ],
-        "tag": "private",
-        "tagConfidence": 0.8
-      },
-      {
-        "name": "APA Hotel Asakusa Tawaramachi-Ekimae",
-        "price": 133999,
-        "rating": 4.1,
-        "reviews": null,
-        "stars": 3,
-        "deal": null,
+        "deal": "파격 할인가",
         "amenities": [
           "위치가 훌륭함",
           "공중목욕탕",
@@ -229,66 +146,130 @@
           "레스토랑"
         ],
         "tag": "private",
-        "tagConfidence": 0.98
+        "tagConfidence": 1
       },
       {
-        "name": "호텔 그라피 네즈",
-        "price": 111038,
+        "name": "Grand Residence Hotel Hakata Premier",
+        "price": 290800,
         "rating": 4.3,
-        "reviews": 839,
-        "stars": 3,
+        "reviews": 22,
+        "stars": null,
         "deal": null,
         "amenities": [
           "무료 Wi-Fi",
           "주차 가능",
-          "바",
-          "레스토랑",
-          "유아 동반 환영"
+          "객실 내 주방"
         ],
         "tag": "private",
-        "tagConfidence": 0.98
+        "tagConfidence": 1
       },
       {
-        "name": "토요코인 기타아사카 에키 니시구치",
-        "price": 89308,
+        "name": "더 블라섬 하카타 프리미어",
+        "price": 394836,
+        "rating": 4.5,
+        "reviews": null,
+        "stars": 4,
+        "deal": null,
+        "amenities": [
+          "환경 보호 인증",
+          "공중목욕탕",
+          "사우나",
+          "무료 Wi-Fi",
+          "유료 주차",
+          "피트니스 센터"
+        ],
+        "tag": "private",
+        "tagConfidence": 0.97
+      },
+      {
+        "name": "KOKO HOTEL 하카타 신칸센구치",
+        "price": 248532,
         "rating": 4.2,
-        "reviews": 238,
+        "reviews": null,
         "stars": 3,
         "deal": null,
         "amenities": [
+          "공중목욕탕",
+          "무료 Wi-Fi",
+          "주차 가능",
+          "유아 동반 환영"
+        ],
+        "tag": "private",
+        "tagConfidence": 0.95
+      },
+      {
+        "name": "다이와 로이넷 호텔 하카타 레이센 프리미어",
+        "price": 322842,
+        "rating": 4.3,
+        "reviews": 679,
+        "stars": 4,
+        "deal": "파격 할인가",
+        "amenities": [
+          "환경 보호 인증",
           "무료 Wi-Fi",
           "유료 주차",
+          "레스토랑",
           "휠체어 사용 가능",
           "유아 동반 환영"
         ],
         "tag": "private",
-        "tagConfidence": 0.98
+        "tagConfidence": 1
       },
       {
-        "name": "도세이 호텔 코코네 우에노",
-        "price": 169224,
-        "rating": 4.2,
+        "name": "호텔 오리엔탈 익스프레스 후쿠오카 나카스카와바타",
+        "price": 242382,
+        "rating": 4,
         "reviews": 716,
         "stars": 3,
         "deal": null,
         "amenities": [
           "위치가 훌륭함",
           "무료 Wi-Fi",
+          "주차 가능",
           "레스토랑",
           "휠체어 사용 가능"
         ],
         "tag": "private",
-        "tagConfidence": 0.88
+        "tagConfidence": 1
       },
       {
-        "name": "다이와 로이넷 호텔 니시신주쿠",
-        "price": 210557,
-        "rating": 4.4,
-        "reviews": null,
+        "name": "더 로얄 파크 캔버스 후쿠오카 나카스",
+        "price": 431393,
+        "rating": 4.3,
+        "reviews": 803,
         "stars": 4,
-        "deal": "파격 할인가",
+        "deal": "할인 상품",
         "amenities": [
-          "환경 보호 인증",
+          "위치가 훌륭함",
+          "공중목욕탕",
+          "사우나",
+          "무료 Wi-Fi",
+          "주차 가능",
+          "레스토랑"
+        ],
+        "tag": "private",
+        "tagConfidence": 0.97
+      },
+      {
+        "name": "プレミアージュ美野島",
+        "price": 214633,
+        "rating": 4.8,
+        "reviews": 6,
+        "stars": null,
+        "deal": null,
+        "amenities": [],
+        "tag": "private",
+        "tagConfidence": 0.94
+      },
+      {
+        "name": "비아인 하카타구치에키마에",
+        "price": 284737,
+        "rating": 4.3,
+        "reviews": 888,
+        "stars": 3,
+        "deal": null,
+        "amenities": [
+          "위치가 훌륭함",
           "무료 Wi-Fi",
           "유료 주차",
           "레스토랑",
@@ -296,51 +277,55 @@
           "유아 동반 환영"
         ],
         "tag": "private",
-        "tagConfidence": 1
+        "tagConfidence": 0.97
       },
       {
-        "name": "&앤드 호스텔 아사쿠사 스테이션",
-        "price": 54806,
-        "rating": 4.4,
-        "reviews": 356,
-        "stars": 2,
+        "name": "니시테츠 호텔 크룸 하카타",
+        "price": 353833,
+        "rating": 4.2,
+        "reviews": null,
+        "stars": 4,
         "deal": null,
         "amenities": [
+          "위치가 훌륭함",
+          "공중목욕탕",
+          "온천",
+          "사우나",
           "무료 Wi-Fi",
-          "주차 가능"
+          "유료 주차"
         ],
-        "tag": "dorm",
-        "tagConfidence": 0.98
+        "tag": "private",
+        "tagConfidence": 0.94
       }
     ]
   },
   "config": {
     "flight": {
       "origin": "ICN",
-      "destination": "NRT",
-      "departDate": "2026-12-10",
-      "returnDate": "2026-12-14",
+      "destination": "FUK",
+      "departDate": "2026-11-06",
+      "returnDate": "2026-11-08",
       "adults": 1,
       "currency": "KRW",
       "targetPrice": 300000
     },
     "hotel": {
       "enabled": true,
-      "query": "Tokyo hotels",
-      "checkIn": "2026-12-10",
-      "checkOut": "2026-12-14",
+      "query": "hakata hotels",
+      "checkIn": "2026-11-06",
+      "checkOut": "2026-11-08",
       "minRating": 4
     },
     "alert": {
-      "minBuyProbability": 0.7
+      "minBuyProbability": 0.85
     }
   },
   "verdict": {
     "model": "typesafe/jev-1.14-20261014",
-    "isCheap": 0.92,
-    "buyProbability": 0.72,
+    "isCheap": 0.1,
+    "buyProbability": 0.11,
     "hitTarget": false,
-    "alert": true,
-    "cost": 0.000024948
+    "alert": false,
+    "cost": 0.00024070199999999997
   }
 }
