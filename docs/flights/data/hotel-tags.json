@@ -100,5 +100,29 @@
     "confidence": 0.98,
     "model": "typesafe/jev-1.14-20261014",
     "taggedAt": "2026-10-25T15:05:22.885Z"
+  },
+  "Hotel Oriental Express Tokyo Kamata": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:14:27.721Z"
+  },
+  "KIN HOTEL": {
+    "tag": "private",
+    "confidence": 0.91,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:14:27.722Z"
+  },
+  "퀸테사 호텔 도쿄 긴자": {
+    "tag": "private",
+    "confidence": 1,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:14:27.722Z"
+  },
+  "Tora Hotel Asakusa": {
+    "tag": "private",
+    "confidence": 0.92,
+    "model": "typesafe/jev-1.14-20261014",
+    "taggedAt": "2026-10-25T15:14:27.722Z"
   }
 }
