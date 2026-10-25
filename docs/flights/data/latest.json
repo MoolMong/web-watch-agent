@@ -1,10 +1,10 @@
 {
-  "checkedAt": "2026-10-25T15:14:26.567Z",
+  "checkedAt": "2026-10-25T15:14:41.970Z",
   "flight": {
     "url": "https://www.google.com/travel/flights?q=Flights%20to%20NRT%20from%20ICN%20on%202026-12-10%20through%202026-12-14&curr=KRW&hl=ko",
     "count": 38,
     "minPrice": 313246,
-    "medianPrice": 364246,
+    "medianPrice": 361086,
     "cheapest": [
       {
         "airline": "에어서울",
@@ -26,8 +26,8 @@
     "minRating": 4,
     "ratingFilterApplied": true,
     "count": 17,
-    "minPricePerNight": 66565,
-    "medianPricePerNight": 104971,
+    "minPricePerNight": 54806,
+    "medianPricePerNight": 89536,
     "list": [
       {
         "name": "2명 숙박 가능한, 침실 1개짜리 집",
@@ -66,6 +66,39 @@
         "tagConfidence": 1
       },
       {
+        "name": "ONE@Tokyo by insomnia",
+        "price": 169027,
+        "rating": 4.3,
+        "reviews": null,
+        "stars": 3,
+        "deal": null,
+        "amenities": [
+          "위치가 훌륭함",
+          "무료 Wi-Fi",
+          "주차 가능",
+          "휠체어 사용 가능",
+          "유아 동반 환영"
+        ],
+        "tag": "private",
+        "tagConfidence": 0.86
+      },
+      {
+        "name": "호텔 윙 인터네셔널 셀렉트 아사쿠사 고마가타",
+        "price": 142017,
+        "rating": 4.3,
+        "reviews": 863,
+        "stars": 3,
+        "deal": "파격 할인가",
+        "amenities": [
+          "위치가 훌륭함",
+          "무료 Wi-Fi",
+          "주차 가능",
+          "유아 동반 환영"
+        ],
+        "tag": "private",
+        "tagConfidence": 1
+      },
+      {
         "name": "Manga Art Hotel",
         "price": 77312,
         "rating": 4,
@@ -78,6 +111,20 @@
         ],
         "tag": "private",
         "tagConfidence": 0.76
+      },
+      {
+        "name": "Hotel KOH Asakusa",
+        "price": 81262,
+        "rating": 4.1,
+        "reviews": 121,
+        "stars": 4,
+        "deal": "할인 상품",
+        "amenities": [
+          "무료 Wi-Fi",
+          "주차 가능"
+        ],
+        "tag": "private",
+        "tagConfidence": 1
       },
       {
         "name": "안돈 료칸",
@@ -252,67 +299,18 @@
         "tagConfidence": 1
       },
       {
-        "name": "Hotel Oriental Express Tokyo Kamata",
-        "price": 115439,
-        "rating": 4.2,
-        "reviews": 979,
-        "stars": 3,
+        "name": "&앤드 호스텔 아사쿠사 스테이션",
+        "price": 54806,
+        "rating": 4.4,
+        "reviews": 356,
+        "stars": 2,
         "deal": null,
         "amenities": [
           "무료 Wi-Fi",
-          "유료 주차",
-          "레스토랑",
-          "휠체어 사용 가능",
-          "유아 동반 환영"
+          "주차 가능"
         ],
-        "tag": "private",
-        "tagConfidence": 1
-      },
-      {
-        "name": "KIN HOTEL",
-        "price": 104971,
-        "rating": 4.3,
-        "reviews": 272,
-        "stars": 3,
-        "deal": "할인 상품",
-        "amenities": [
-          "노천탕",
-          "무료 Wi-Fi"
-        ],
-        "tag": "private",
-        "tagConfidence": 0.91
-      },
-      {
-        "name": "퀸테사 호텔 도쿄 긴자",
-        "price": 230580,
-        "rating": 4.2,
-        "reviews": 571,
-        "stars": 4,
-        "deal": null,
-        "amenities": [
-          "무료 Wi-Fi",
-          "유료 주차",
-          "레스토랑",
-          "휠체어 사용 가능",
-          "유아 동반 환영"
-        ],
-        "tag": "private",
-        "tagConfidence": 1
-      },
-      {
-        "name": "Tora Hotel Asakusa",
-        "price": 76941,
-        "rating": 4.3,
-        "reviews": 149,
-        "stars": 1,
-        "deal": null,
-        "amenities": [
-          "무료 Wi-Fi",
-          "바",
-          "일부 객실 내 주방 시설"
-        ],
-        "tag": "private",
-        "tagConfidence": 0.92
+        "tag": "dorm",
+        "tagConfidence": 0.98
       }
     ]
   },
@@ -339,10 +337,10 @@
   },
   "verdict": {
     "model": "typesafe/jev-1.14-20261014",
-    "isCheap": 0.93,
-    "buyProbability": 0.78,
+    "isCheap": 0.92,
+    "buyProbability": 0.74,
     "hitTarget": false,
     "alert": true,
-    "cost": 0.00008118599999999999
+    "cost": 0.000024948
   }
 }
