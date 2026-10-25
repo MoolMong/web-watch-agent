@@ -4,6 +4,7 @@
 # Usage: powershell -ExecutionPolicy Bypass -File scripts\run.ps1 -Watcher flights [-NoPush]
 param([string]$Watcher = "flights", [switch]$NoPush)
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [Text.Encoding]::UTF8  # node prints UTF-8; keep Korean readable in run.log
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $dir = Join-Path $root "watchers\$Watcher"
 if (-not (Test-Path $dir)) { throw "Unknown watcher: $Watcher" }
