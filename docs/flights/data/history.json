@@ -78,5 +78,15 @@
     "isCheap": 0.92,
     "buyProbability": 0.74,
     "alert": true
+  },
+  {
+    "checkedAt": "2026-10-25T15:18:28.834Z",
+    "configKey": "{\"origin\":\"ICN\",\"destination\":\"NRT\",\"departDate\":\"2026-12-10\",\"returnDate\":\"2026-12-14\",\"adults\":1,\"currency\":\"KRW\",\"targetPrice\":300000}",
+    "minPrice": 313246,
+    "medianPrice": 361086,
+    "hotelMinPerNight": 54806,
+    "isCheap": 0.92,
+    "buyProbability": 0.72,
+    "alert": true
   }
 ]

@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-10-25T15:14:41.970Z",
+  "checkedAt": "2026-10-25T15:18:28.834Z",
   "flight": {
     "url": "https://www.google.com/travel/flights?q=Flights%20to%20NRT%20from%20ICN%20on%202026-12-10%20through%202026-12-14&curr=KRW&hl=ko",
     "count": 38,
@@ -286,7 +286,7 @@
         "rating": 4.4,
         "reviews": null,
         "stars": 4,
-        "deal": "할인 상품",
+        "deal": "파격 할인가",
         "amenities": [
           "환경 보호 인증",
           "무료 Wi-Fi",
@@ -338,7 +338,7 @@
   "verdict": {
     "model": "typesafe/jev-1.14-20261014",
     "isCheap": 0.92,
-    "buyProbability": 0.74,
+    "buyProbability": 0.72,
     "hitTarget": false,
     "alert": true,
     "cost": 0.000024948
