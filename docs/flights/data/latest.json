@@ -1,10 +1,10 @@
 {
-  "checkedAt": "2026-10-25T14:50:35.020Z",
+  "checkedAt": "2026-10-25T14:51:56.557Z",
   "flight": {
     "url": "https://www.google.com/travel/flights?q=Flights%20to%20NRT%20from%20ICN%20on%202026-12-10%20through%202026-12-14&curr=KRW&hl=ko",
     "count": 38,
     "minPrice": 313246,
-    "medianPrice": 364246,
+    "medianPrice": 361500,
     "cheapest": [
       {
         "airline": "에어서울",
@@ -50,7 +50,7 @@
   "verdict": {
     "model": "typesafe/jev-1.14-20261014",
     "isCheap": 0.93,
-    "buyProbability": 0.72,
+    "buyProbability": 0.74,
     "hitTarget": false,
     "alert": true,
     "cost": 0.000024948
