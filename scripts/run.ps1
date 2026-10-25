@@ -16,6 +16,10 @@ $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Env
 if (-not $env:OPENROUTER_API_KEY) { $env:OPENROUTER_API_KEY = [Environment]::GetEnvironmentVariable("OPENROUTER_API_KEY","User") }
 if (-not $env:OPENROUTER_API_KEY) { Log "OPENROUTER_API_KEY is not set"; exit 1 }
 
+# One check at a time: the 3-hourly task and a dashboard "지금 검색" request can overlap.
+$mutex = New-Object Threading.Mutex($false, "Local\WebWatchAgentRun")
+try { $null = $mutex.WaitOne([TimeSpan]::FromMinutes(15)) } catch [Threading.AbandonedMutexException] {}
+
 Push-Location $root
 try {
   if (-not $NoPush) { git pull --rebase --quiet; if ($LASTEXITCODE -ne 0) { Log "git pull failed"; exit 1 } }
@@ -38,4 +42,4 @@ try {
       Log "pushed"
     }
   }
-} finally { Pop-Location }
+} finally { Pop-Location; try { $mutex.ReleaseMutex() } catch {} }

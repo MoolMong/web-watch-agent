@@ -98,6 +98,14 @@ th { color: var(--muted); font-weight: 600; font-size: 13px; }
 }
 .help b { color: var(--text); }
 
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.run-status { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; font-size: 14px; }
+.run-status.pending { background: var(--wait-bg); color: var(--text); }
+.run-status.done { background: var(--good-bg); color: var(--text); }
+.run-status a { color: var(--accent); }
+.raw { margin-top: 12px; }
+.raw summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+
 /* airport combobox */
 .combo-list {
   position: absolute; z-index: 20; top: 100%; left: 0; right: 0; margin: 4px 0 0; padding: 4px 0;

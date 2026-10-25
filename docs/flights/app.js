@@ -263,15 +263,66 @@ function setupForm(cfg) {
   $("cfg").addEventListener("input", updatePreview);
   $("cfg").addEventListener("change", updatePreview);
   const info = repoInfo();
-  const link = $("edit-link");
-  if (info) link.href = `https://github.com/${info.owner}/${info.repo}/edit/main/docs/flights/config.json`;
-  else { link.removeAttribute("href"); link.title = "GitHub Pages에서 열면 동작합니다"; }
-  $("cfg").addEventListener("submit", async (e) => {
+  if (!info) { $("run-btn").disabled = true; $("run-btn").title = "GitHub Pages에서 열면 동작합니다"; }
+
+  // "지금 검색": open a prefilled GitHub issue; the PC's poll task applies it and runs a check.
+  $("cfg").addEventListener("submit", (e) => {
     e.preventDefault();
-    const text = JSON.stringify(buildConfig(), null, 2) + "\n";
-    try { await navigator.clipboard.writeText(text); $("copied").textContent = "복사됨. GitHub에서 전체 선택 후 붙여넣고 Commit 하세요."; }
-    catch { $("copied").textContent = "복사 권한이 없습니다. 아래 내용을 직접 복사하세요."; }
+    const cfg = buildConfig();
+    if (!cfg.flight.origin || !cfg.flight.destination) { $("copied").textContent = "출발·도착 공항을 목록에서 골라 주세요."; return; }
+    if (cfg.flight.returnDate && cfg.flight.returnDate < cfg.flight.departDate) { $("copied").textContent = "오는 날이 가는 날보다 빠릅니다."; return; }
+    const c = cfg.flight;
+    const title = `[run] flights ${c.origin}→${c.destination} ${c.departDate}${c.returnDate ? "~" + c.returnDate : ""}`;
+    const body = "대시보드에서 보낸 검색 요청입니다. **Submit new issue**를 누르면 PC가 이 조건을 저장하고 바로 검색합니다.\n\n```json\n"
+      + JSON.stringify(cfg, null, 2) + "\n```\n";
+    const url = `https://github.com/${info.owner}/${info.repo}/issues/new?labels=run&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+    window.open(url, "_blank", "noopener");
+    store.set("run-requested-at", Date.now());
+    $("copied").textContent = "GitHub 창에서 Submit new issue를 눌러 주세요.";
+    watchRunStatus(info);
   });
+  $("copy-btn").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(JSON.stringify(buildConfig(), null, 2) + "\n"); $("copied").textContent = "설정을 복사했습니다."; }
+    catch { $("copied").textContent = "복사 권한이 없습니다. '설정 JSON 보기'에서 직접 복사하세요."; }
+  });
+  if (info) watchRunStatus(info);
+}
+
+// Shows the newest search request and its state; while one is pending, re-check every 20 s
+// and reload the dashboard once the PC closes it.
+let statusTimer = null;
+async function watchRunStatus(info) {
+  clearTimeout(statusTimer);
+  const el = $("run-status");
+  let issue;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${info.owner}/${info.repo}/issues?labels=run&state=all&per_page=1&sort=created`);
+    if (!res.ok) return;
+    [issue] = await res.json();
+  } catch { return; }
+  const requestedAt = store.get("run-requested-at", 0);
+  const waiting = Date.now() - requestedAt < 10 * 60_000;
+  if (!issue && !waiting) return;
+  el.hidden = false;
+  const link = issue ? `<a href="${esc(issue.html_url)}" target="_blank" rel="noopener">#${issue.number}</a>` : "";
+  if (issue?.state === "open") {
+    el.className = "run-status pending";
+    el.innerHTML = `⏳ 검색 요청 ${link} 처리 중입니다. PC가 켜져 있으면 2분 안에 시작하고, 검색은 1~2분 걸립니다.`;
+  } else if (waiting && (!issue || Date.parse(issue.created_at) < requestedAt - 60_000)) {
+    el.className = "run-status pending";
+    el.innerHTML = `GitHub 창에서 <b>Submit new issue</b>를 누르면 여기에 진행 상황이 표시됩니다.`;
+  } else {
+    el.className = "run-status done";
+    el.innerHTML = `✅ 최근 검색 요청 ${link} 처리 완료 (${when(issue.closed_at || issue.updated_at)})`;
+    if (store.get("run-reloaded-for", 0) !== issue.number && waiting) {
+      // GitHub Pages needs about a minute to publish the pushed results.
+      store.set("run-reloaded-for", issue.number);
+      el.innerHTML += " · 결과를 반영하는 중이라 1분 뒤 새로고침합니다.";
+      setTimeout(() => location.reload(), 60_000);
+    }
+    return;
+  }
+  if (Date.now() - requestedAt < 30 * 60_000) statusTimer = setTimeout(() => watchRunStatus(info), 20_000);
 }
 
 (async () => {

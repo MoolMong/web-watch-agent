@@ -48,6 +48,18 @@ powershell -ExecutionPolicy Bypass -File scripts\register-task.ps1 -Watcher flig
 
 로그: `watchers/<id>/.tmp/run.log`
 
+## 대시보드에서 "지금 검색"
+
+조건을 바꾸고 **이 조건으로 지금 검색**을 누르면 `[run] flights ...` 제목과 `run` 라벨, 설정 JSON이 채워진 GitHub 이슈 작성 화면이 열립니다.
+Submit하면 PC의 `WebWatchAgent-requests` 작업(`scripts/poll.ps1`, 2분 간격)이 이를 받아 처리합니다.
+
+1. 저장소 소유자가 연 이슈만 받습니다.
+2. `watchers/<id>/apply-config.ts`로 검증합니다.
+3. `docs/<id>/config.json`을 커밋하고 바로 `run.ps1`을 실행합니다.
+4. 결과를 댓글로 남기고 이슈를 닫습니다.
+
+공개 사이트에 쓰기 토큰을 두지 않으려고 이 방식을 씁니다.
+
 ## 주의
 
 - 화면 글자를 읽는 방식이라 사이트 구성이 바뀌면 수집이 깨질 수 있습니다.
