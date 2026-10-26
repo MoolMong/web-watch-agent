@@ -5,14 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Flights · Web Watch Agent</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
+<nav class="nav">
+  <div class="wrap">
+    <a class="brand" href="../"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#050038" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>Web Watch Agent</a>
+    <div class="nav-links">
+      <a class="nav-link" href="../">전체</a>
+      <a class="nav-link" href="../flights/" aria-current="page">항공권·호텔</a>
+      <button type="button" id="logout" class="linkish" hidden>로그아웃</button>
+    </div>
+  </div>
+</nav>
 <header class="top">
   <div class="wrap">
-    <div class="row-between"><a class="back" href="../">← 모든 감시</a><button type="button" id="logout" class="linkish" hidden>로그아웃</button></div>
+    <span class="eyebrow"><span class="dot"></span>3시간마다 자동 확인</span>
     <h1>항공권·호텔 가격 감시</h1>
-    <p class="sub">구글 항공권·호텔 가격을 3시간마다 확인하고, Jev가 지금 살 때인지 판단합니다.</p>
+    <p class="sub">구글 항공권과 호텔 가격을 확인하고, Jev가 지금 살 때인지 판단합니다.</p>
   </div>
 </header>
 
@@ -66,14 +78,11 @@
         </select>
       </div>
 
-      <div class="field hotel-toggle">
+      <div class="field hotel-query">
         <label class="check"><input name="hotelEnabled" type="checkbox"> 호텔도 확인</label>
+        <input id="hotelQuery" class="hotel-input" name="hotelQuery" placeholder="호텔 검색어 (예: Tokyo hotels)" aria-label="호텔 검색어">
       </div>
-      <div class="field hotel-opt">
-        <label for="hotelQuery">호텔 검색어</label>
-        <input id="hotelQuery" name="hotelQuery" placeholder="Tokyo hotels">
-      </div>
-      <div class="field hotel-opt">
+      <div class="field hotel-rating">
         <label for="minRating">호텔 최소 평점</label>
         <select id="minRating" name="minRating">
           <option value="0">제한 없음</option>
@@ -84,8 +93,8 @@
       </div>
 
       <div class="search-actions">
-        <button type="submit" id="run-btn" class="search-btn">검색</button>
         <span id="form-msg" class="muted"></span>
+        <button type="submit" id="run-btn" class="search-btn">검색</button>
       </div>
       <p id="minbuy-help" class="help wide" hidden>
         <b>알림 민감도</b>: 확인할 때마다 Jev가 "지금 사는 게 낫다"고 볼 확률을 0~100%로 냅니다(아래 <i>구매 확률</i>).

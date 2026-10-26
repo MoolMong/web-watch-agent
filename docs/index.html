@@ -5,13 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Web Watch Agent</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👀</text></svg>">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<nav class="nav">
+  <div class="wrap">
+    <a class="brand" href="./"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#050038" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>Web Watch Agent</a>
+    <div class="nav-links">
+      <a class="nav-link" href="./" aria-current="page">전체</a>
+      <a class="nav-link" href="./flights/">항공권·호텔</a>
+      <button type="button" id="logout" class="linkish" hidden>로그아웃</button>
+    </div>
+  </div>
+</nav>
 <header class="top">
   <div class="wrap">
-    <h1>Web Watch Agent</h1>
-    <p class="sub">ego 브라우저가 웹사이트를 확인하고, Jev가 알릴지 판단합니다. 결제·예매는 자동으로 하지 않습니다.</p>
+    <span class="eyebrow"><span class="dot"></span>개인용 감시 에이전트</span>
+    <h1>지켜볼 것은 맡기고,<br>알릴 때만 확인하세요</h1>
+    <p class="sub">ego 브라우저가 웹사이트를 확인하고, Jev가 알릴 가치가 있는지 판단합니다. 결제·예매는 자동으로 하지 않습니다.</p>
   </div>
 </header>
 <main class="wrap">
@@ -25,6 +38,8 @@
   const list = document.getElementById("list");
   try { await window.wwa.requireLogin(document.querySelector("main")); } catch { return; }
   const sb = window.wwa.sb;
+  document.getElementById("logout").hidden = false;
+  document.getElementById("logout").addEventListener("click", window.wwa.logout);
   try {
     const watchers = await (await fetch("watchers.json?t=" + Date.now())).json();
     const cards = await Promise.all(watchers.map(async (w) => {

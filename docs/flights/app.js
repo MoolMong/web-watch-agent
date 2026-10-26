@@ -398,8 +398,8 @@ function setSelect(select, value) {
 
 function syncHotelFields() {
   const on = $("cfg").elements.hotelEnabled.checked;
-  document.querySelectorAll(".hotel-opt").forEach((el) => el.classList.toggle("disabled", !on));
-  document.querySelectorAll(".hotel-opt input, .hotel-opt select").forEach((el) => (el.disabled = !on));
+  document.querySelectorAll(".hotel-input, .hotel-rating").forEach((el) => el.classList.toggle("disabled", !on));
+  document.querySelectorAll(".hotel-input, #minRating").forEach((el) => (el.disabled = !on));
 }
 
 let formReady = false;
