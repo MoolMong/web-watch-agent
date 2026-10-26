@@ -1,4 +1,5 @@
--- web-watch-agent schema. Paste into Supabase → SQL Editor → Run (safe to run again).
+-- web-watch-agent schema. Paste into Supabase → SQL Editor → Run (safe to run again),
+-- then run supabase/migrations/002_watches.sql (multiple saved watches per watcher).
 --
 -- Access model: sign-ups are disabled, so the only "authenticated" user is the owner.
 --   * Dashboard (publishable key + owner login): read everything, insert search requests.

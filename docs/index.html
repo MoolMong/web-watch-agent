@@ -45,9 +45,13 @@
     const cards = await Promise.all(watchers.map(async (w) => {
       let line = w.status === "active" ? "" : "준비 중";
       if (w.status === "active") {
-        const { data } = await sb.from("watch_checks").select("checked_at, summary").eq("watcher", w.id)
-          .order("checked_at", { ascending: false }).limit(1).maybeSingle();
-        line = data ? (data.summary?.alert ? "🟢 알림 · " : "") + "마지막 확인 " + new Date(data.checked_at).toLocaleString("ko-KR") : "아직 기록 없음";
+        const { data } = await sb.from("watches").select("enabled, last_checked_at, last_summary").eq("watcher", w.id);
+        const rows = data || [];
+        const alerts = rows.filter((r) => r.last_summary?.alert).length;
+        const last = rows.map((r) => r.last_checked_at).filter(Boolean).sort().at(-1);
+        line = rows.length
+          ? `감시 ${rows.length}개${alerts ? ` · 🟢 구매 추천 ${alerts}개` : ""}${last ? ` · 마지막 확인 ${new Date(last).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}`
+          : "아직 감시 없음";
       }
       const tag = w.status === "active" ? "a" : "div";
       return `<${tag} class="card hub-item ${w.status}" ${w.status === "active" ? `href="${w.id}/"` : ""}>

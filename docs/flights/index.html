@@ -22,14 +22,28 @@
 </nav>
 <header class="top">
   <div class="wrap">
-    <span class="eyebrow"><span class="dot"></span>3시간마다 자동 확인</span>
+    <span class="eyebrow"><span class="dot"></span>켜 둔 감시는 3시간마다 자동 확인</span>
     <h1>항공권·호텔 가격 감시</h1>
-    <p class="sub">구글 항공권과 호텔 가격을 확인하고, Jev가 지금 살 때인지 판단합니다.</p>
+    <p class="sub">원하는 조건을 여러 개 등록해 두면, 구글 항공권·호텔 가격을 확인하고 Jev가 지금 살 때인지 판단합니다.</p>
   </div>
 </header>
 
 <main class="wrap">
-  <section class="card search-card">
+  <!-- editor -->
+  <section class="card search-card" id="editor">
+    <div class="editor-head">
+      <div>
+        <h2 id="editor-title">새 감시</h2>
+        <p id="editor-sub" class="muted small">조건을 정하고 추가하면 바로 검색합니다.</p>
+      </div>
+      <div class="editor-tools">
+        <label class="switch" title="출발지·도착지·날짜를 여러 개 골라 조합마다 감시를 만듭니다">
+          <input type="checkbox" id="bulk-toggle"><span class="track"></span><span>여러 개 한 번에</span>
+        </label>
+        <button type="button" id="new-watch" class="button ghost small-btn" hidden>새로 작성</button>
+      </div>
+    </div>
+
     <form id="cfg" class="search-form" autocomplete="off">
       <div class="route">
         <div class="field combo" data-field="origin">
@@ -37,6 +51,7 @@
           <input id="origin-input" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="origin-list" placeholder="도시·국가·공항 코드">
           <input type="hidden" name="origin">
           <ul id="origin-list" class="combo-list" role="listbox" hidden></ul>
+          <div class="chips" data-chips="origin" hidden></div>
         </div>
         <button type="button" id="swap" class="swap" title="출발·도착 바꾸기" aria-label="출발과 도착 바꾸기">⇄</button>
         <div class="field combo" data-field="destination">
@@ -44,6 +59,7 @@
           <input id="destination-input" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="destination-list" placeholder="예: 일본, 도쿄, NRT">
           <input type="hidden" name="destination">
           <ul id="destination-list" class="combo-list" role="listbox" hidden></ul>
+          <div class="chips" data-chips="destination" hidden></div>
         </div>
       </div>
 
@@ -53,6 +69,7 @@
         <input type="hidden" name="departDate">
         <input type="hidden" name="returnDate">
         <div id="calendar" class="calendar" role="dialog" aria-label="날짜 선택" hidden></div>
+        <div class="chips" data-chips="dates" hidden></div>
       </div>
 
       <div class="field">
@@ -92,64 +109,103 @@
         </select>
       </div>
 
-      <div class="search-actions">
-        <span id="form-msg" class="muted"></span>
-        <button type="submit" id="run-btn" class="search-btn">검색</button>
-      </div>
-      <p id="minbuy-help" class="help wide" hidden>
-        <b>알림 민감도</b>: 확인할 때마다 Jev가 "지금 사는 게 낫다"고 볼 확률을 0~100%로 냅니다(아래 <i>구매 확률</i>).
+      <p id="minbuy-help" class="help" hidden>
+        <b>알림 민감도</b>: 확인할 때마다 Jev가 "지금 사는 게 낫다"고 볼 확률을 0~100%로 냅니다(<i>구매 확률</i>).
         이 확률이 기준 이상이면 <b>지금 구매 추천</b>으로 바뀝니다. 낮추면 추천이 자주 뜨고, 높이면 확실할 때만 뜹니다. 목표가에 닿으면 기준과 상관없이 추천합니다.
       </p>
+
+      <div id="bulk-preview" class="bulk-preview" hidden></div>
+
+      <div class="search-actions">
+        <span id="form-msg" class="muted"></span>
+        <button type="button" id="save-only" class="button ghost">검색 없이 저장</button>
+        <button type="submit" id="run-btn" class="search-btn">추가하고 검색</button>
+      </div>
     </form>
     <p id="run-status" class="run-status" hidden></p>
   </section>
 
-  <section id="verdict" class="card verdict" aria-live="polite">
-    <p class="muted">불러오는 중…</p>
-  </section>
-
-  <section class="grid">
-    <div class="card stat"><span class="label">항공권 최저가</span><span id="s-min" class="value">-</span><span id="s-airline" class="hint"></span></div>
-    <div class="card stat"><span class="label">오늘 중앙값</span><span id="s-med" class="value">-</span><span class="hint">검색 결과 전체 기준</span></div>
-    <div class="card stat"><span class="label">목표가</span><span id="s-target" class="value">-</span><span id="s-gap" class="hint"></span></div>
-    <div class="card stat"><span class="label">호텔 1박 최저</span><span id="s-hotel" class="value">-</span><span id="s-hotel-hint" class="hint">아래 숙소 필터 기준</span></div>
-  </section>
-
-  <section class="card">
-    <div class="row-between">
-      <h2>최저가 추이</h2>
-      <span id="trip" class="muted"></span>
+  <!-- list -->
+  <section class="card list-card">
+    <div class="card-head">
+      <h2>감시 목록 <span id="watch-count" class="count"></span></h2>
+      <div id="bulk-bar" class="bulk-bar" hidden>
+        <span id="bulk-count"></span>
+        <button type="button" class="button ghost small-btn" data-bulk="run">검색</button>
+        <button type="button" class="button ghost small-btn" data-bulk="on">켜기</button>
+        <button type="button" class="button ghost small-btn" data-bulk="off">끄기</button>
+        <button type="button" class="button ghost small-btn danger" data-bulk="delete">삭제</button>
+      </div>
     </div>
-    <div id="chart" class="chart"></div>
-    <p id="insight" class="insight"></p>
-  </section>
-
-  <section class="card">
-    <h2>최근 확인 기록</h2>
     <div class="table-wrap">
-      <table>
-        <thead><tr><th>확인 시각</th><th class="num">최저가</th><th class="num">저렴함</th><th class="num">구매 확률</th><th>판단</th></tr></thead>
-        <tbody id="rows"></tbody>
+      <table class="watch-table">
+        <thead>
+          <tr>
+            <th class="col-check"><input type="checkbox" id="check-all" aria-label="모두 선택"></th>
+            <th>조건</th>
+            <th class="num">최저가</th>
+            <th>판단</th>
+            <th>마지막 확인</th>
+            <th class="col-on">자동</th>
+            <th class="col-actions"></th>
+          </tr>
+        </thead>
+        <tbody id="watch-rows"><tr><td colspan="7" class="muted">불러오는 중…</td></tr></tbody>
       </table>
     </div>
   </section>
 
-  <section class="card" id="hotel-card" hidden>
-    <div class="row-between">
-      <h2>숙소</h2>
-      <span id="hotel-meta" class="muted"></span>
-    </div>
-    <div class="filters">
-      <span class="muted">제외</span>
-      <label class="chip"><input type="checkbox" id="ex-capsule"> 캡슐호텔</label>
-      <label class="chip"><input type="checkbox" id="ex-dorm"> 공유방(도미토리)</label>
-      <label class="chip">정렬
-        <select id="hotel-sort"><option value="price">가격 낮은 순</option><option value="rating">평점 높은 순</option></select>
-      </label>
-    </div>
-    <p class="muted small">숙소 유형 태그는 Jev가 이름·등급·편의시설을 보고 판단한 값입니다. 틀릴 수 있으니 예약 전에 객실 유형을 확인하세요.</p>
-    <ul id="hotels" class="hotel-list"></ul>
-  </section>
+  <!-- detail of the selected watch -->
+  <div id="detail" hidden>
+    <p class="section-label" id="detail-label">선택한 감시</p>
+
+    <section id="verdict" class="card verdict" aria-live="polite">
+      <p class="muted">불러오는 중…</p>
+    </section>
+
+    <section class="grid">
+      <div class="card stat"><span class="label">항공권 최저가</span><span id="s-min" class="value">-</span><span id="s-airline" class="hint"></span></div>
+      <div class="card stat"><span class="label">오늘 중앙값</span><span id="s-med" class="value">-</span><span class="hint">검색 결과 전체 기준</span></div>
+      <div class="card stat"><span class="label">목표가</span><span id="s-target" class="value">-</span><span id="s-gap" class="hint"></span></div>
+      <div class="card stat"><span class="label">호텔 1박 최저</span><span id="s-hotel" class="value">-</span><span id="s-hotel-hint" class="hint">아래 숙소 필터 기준</span></div>
+    </section>
+
+    <section class="card">
+      <div class="row-between">
+        <h2>최저가 추이</h2>
+        <span id="trip" class="muted"></span>
+      </div>
+      <div id="chart" class="chart"></div>
+      <p id="insight" class="insight"></p>
+    </section>
+
+    <section class="card">
+      <h2>최근 확인 기록</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>확인 시각</th><th class="num">최저가</th><th class="num">저렴함</th><th class="num">구매 확률</th><th>판단</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card" id="hotel-card" hidden>
+      <div class="row-between">
+        <h2>숙소</h2>
+        <span id="hotel-meta" class="muted"></span>
+      </div>
+      <div class="filters">
+        <span class="muted">제외</span>
+        <label class="chip"><input type="checkbox" id="ex-capsule"> 캡슐호텔</label>
+        <label class="chip"><input type="checkbox" id="ex-dorm"> 공유방(도미토리)</label>
+        <label class="chip">정렬
+          <select id="hotel-sort"><option value="price">가격 낮은 순</option><option value="rating">평점 높은 순</option></select>
+        </label>
+      </div>
+      <p class="muted small">숙소 유형 태그는 Jev가 이름·등급·편의시설을 보고 판단한 값입니다. 틀릴 수 있으니 예약 전에 객실 유형을 확인하세요.</p>
+      <ul id="hotels" class="hotel-list"></ul>
+    </section>
+  </div>
 
   <footer class="muted foot">
     가격 수집은 사용자 PC의 ego 브라우저가, 판단은 OpenRouter의 TypeSafe Jev가 합니다. 결제는 자동으로 하지 않습니다.

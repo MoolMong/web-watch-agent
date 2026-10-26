@@ -8,6 +8,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
 const WATCHER = "flights";
+const MAX_BULK = 30;
 let sb;
 
 // ---- airports ----
@@ -17,48 +18,136 @@ function airportLabel(code) {
   const a = AIRPORT_BY_CODE[code];
   return a ? `${a[2]} ${a[1]} (${a[0]})` : code || "";
 }
+const cityOf = (code) => AIRPORT_BY_CODE[code]?.[2] || code;
 
-// ---- data ----
-async function loadData() {
-  const [cfgRes, latestRes] = await Promise.all([
-    sb.from("watch_configs").select("config").eq("watcher", WATCHER).maybeSingle(),
-    sb.from("watch_checks").select("checked_at, config_key, snapshot").eq("watcher", WATCHER).order("checked_at", { ascending: false }).limit(1).maybeSingle(),
-  ]);
-  if (cfgRes.error) throw cfgRes.error;
-  if (latestRes.error) throw latestRes.error;
-  let points = [];
-  if (latestRes.data) {
-    const hist = await sb.from("watch_checks").select("checked_at, summary").eq("watcher", WATCHER)
-      .eq("config_key", latestRes.data.config_key).order("checked_at", { ascending: true }).limit(500);
-    if (hist.error) throw hist.error;
-    points = hist.data.map((r) => ({ checkedAt: r.checked_at, ...r.summary }));
-  }
-  return { config: cfgRes.data?.config ?? null, latest: latestRes.data?.snapshot ?? null, points };
+// ---- dates ----
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const parseISO = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const DOW = ["일", "월", "화", "수", "목", "금", "토"];
+const fmtDay = (s) => { const d = parseISO(s); return `${d.getMonth() + 1}/${d.getDate()}(${DOW[d.getDay()]})`; };
+const nightsOf = (a, b) => Math.round((parseISO(b) - parseISO(a)) / 86_400_000);
+const rangeLabel = (a, b) => (b ? `${fmtDay(a)} ~ ${fmtDay(b)} · ${nightsOf(a, b)}박` : `${fmtDay(a)} · 편도`);
+
+// ---- state ----
+const state = {
+  watches: [],          // rows from `watches`
+  selectedId: null,     // watch shown in the detail area
+  editingId: null,      // watch loaded in the editor (null = new)
+  checked: new Set(),   // rows ticked for bulk actions
+  bulk: false,          // editor in "여러 개 한 번에" mode
+  multi: { origin: [], destination: [], dates: [] }, // bulk-mode selections
+};
+
+const watchTitle = (c) => `${cityOf(c.flight.origin)} → ${cityOf(c.flight.destination)}`;
+const watchDates = (c) => rangeLabel(c.flight.departDate, c.flight.returnDate);
+function watchSub(c) {
+  const parts = [`성인 ${c.flight.adults}`];
+  if (c.flight.targetPrice) parts.push(`목표 ${won(c.flight.targetPrice)}`);
+  if (c.hotel?.enabled) parts.push(`호텔 ${c.hotel.query || ""}${c.hotel.minRating ? ` ★${Number(c.hotel.minRating).toFixed(1)}+` : ""}`);
+  return parts.join(" · ");
 }
 
-async function refresh() {
-  const { config, latest, points } = await loadData();
-  if (config) setupForm(config);
-  if (!latest) {
-    $("verdict").innerHTML = `<p class="muted">아직 확인 결과가 없습니다. 아래에서 조건을 정하고 <b>이 조건으로 지금 검색</b>을 눌러 보세요.</p>`;
-    return;
-  }
-  renderVerdict(latest);
-  renderStats(latest);
-  renderChart(points, latest.config.flight.targetPrice);
-  renderRows(points);
-  renderHotels(latest);
-  if (config && JSON.stringify(config.flight) !== JSON.stringify(latest.config.flight)) {
-    $("insight").textContent = "조건이 바뀌었습니다. 다음 확인부터 새 조건으로 기록됩니다.";
-  }
+// =====================================================================
+// Watch list
+// =====================================================================
+async function loadWatches() {
+  const { data, error } = await sb.from("watches").select("*").eq("watcher", WATCHER).order("created_at", { ascending: true });
+  if (error) throw error;
+  state.watches = data;
+  for (const id of [...state.checked]) if (!data.some((w) => w.id === id)) state.checked.delete(id);
+  renderWatchList();
 }
 
-// ---- requests ("지금 검색") ----
-let watching = null;
-async function requestRun(config) {
-  const { data, error } = await sb.from("watch_requests").insert({ watcher: WATCHER, config }).select("id, status, created_at").single();
-  if (error) { showStatus("error", `요청을 보내지 못했습니다: ${esc(error.message)}`); return; }
-  watchRequest(data);
+function renderWatchList() {
+  const rows = state.watches;
+  $("watch-count").textContent = rows.length ? rows.length : "";
+  $("watch-rows").innerHTML = rows.map((w) => {
+    const c = w.config, s = w.last_summary;
+    const verdict = w.last_error ? `<span class="tag error" title="${esc(w.last_error)}">오류</span>`
+      : !s ? `<span class="tag wait">대기 중</span>`
+      : `<span class="tag ${s.alert ? "buy" : "wait"}">${s.alert ? "구매 추천" : "기다리기"}</span>`;
+    return `<tr class="${w.id === state.selectedId ? "selected" : ""} ${w.enabled ? "" : "off"}" data-id="${w.id}">
+      <td class="col-check"><input type="checkbox" data-check="${w.id}" ${state.checked.has(w.id) ? "checked" : ""} aria-label="선택"></td>
+      <td class="watch-cell">
+        <button type="button" class="watch-name" data-open="${w.id}">${esc(watchTitle(c))} <span class="watch-dates">${esc(watchDates(c))}</span></button>
+        <span class="watch-sub">${esc(watchSub(c))}</span>
+      </td>
+      <td class="num">${s ? won(s.minPrice) : "-"}</td>
+      <td>${verdict}</td>
+      <td class="muted">${w.last_checked_at ? when(w.last_checked_at) : "-"}</td>
+      <td class="col-on"><label class="switch mini"><input type="checkbox" data-toggle="${w.id}" ${w.enabled ? "checked" : ""} aria-label="자동 확인"><span class="track"></span></label></td>
+      <td class="col-actions">
+        <button type="button" class="icon-btn" data-run="${w.id}" title="지금 검색" aria-label="지금 검색">↻</button>
+        <button type="button" class="icon-btn" data-edit="${w.id}" title="편집" aria-label="편집">✎</button>
+        <button type="button" class="icon-btn" data-copy="${w.id}" title="복제" aria-label="복제">⧉</button>
+      </td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="7" class="empty-row">아직 감시가 없습니다. 위에서 조건을 정하고 <b>추가하고 검색</b>을 누르세요.</td></tr>`;
+  $("check-all").checked = rows.length > 0 && rows.every((w) => state.checked.has(w.id));
+  renderBulkBar();
+}
+
+function renderBulkBar() {
+  const n = state.checked.size;
+  $("bulk-bar").hidden = n === 0;
+  $("bulk-count").textContent = `${n}개 선택`;
+}
+
+function setupWatchList() {
+  $("watch-rows").addEventListener("click", async (e) => {
+    const t = e.target;
+    const id = (attr) => Number(t.closest(`[${attr}]`)?.getAttribute(attr));
+    if (t.matches("[data-check]")) { t.checked ? state.checked.add(id("data-check")) : state.checked.delete(id("data-check")); renderBulkBar(); return; }
+    if (t.matches("[data-toggle]")) { await setEnabled([id("data-toggle")], t.checked); return; }
+    if (t.closest("[data-run]")) { await requestRuns([id("data-run")]); return; }
+    if (t.closest("[data-edit]")) { const w = findWatch(id("data-edit")); editWatch(w); return; }
+    if (t.closest("[data-copy]")) { const w = findWatch(id("data-copy")); copyWatch(w); return; }
+    const row = t.closest("tr[data-id]");
+    if (row && !t.closest("input,button,label")) selectWatch(Number(row.dataset.id));
+    if (t.closest("[data-open]")) selectWatch(id("data-open"));
+  });
+  $("check-all").addEventListener("change", (e) => {
+    state.checked = e.target.checked ? new Set(state.watches.map((w) => w.id)) : new Set();
+    renderWatchList();
+  });
+  $("bulk-bar").addEventListener("click", async (e) => {
+    const act = e.target.closest("[data-bulk]")?.dataset.bulk;
+    const ids = [...state.checked];
+    if (!act || !ids.length) return;
+    if (act === "run") await requestRuns(ids);
+    if (act === "on") await setEnabled(ids, true);
+    if (act === "off") await setEnabled(ids, false);
+    if (act === "delete") {
+      if (!confirm(`감시 ${ids.length}개와 그 기록을 삭제할까요? 되돌릴 수 없습니다.`)) return;
+      const { error } = await sb.from("watches").delete().in("id", ids);
+      if (error) return showStatus("error", `삭제하지 못했습니다: ${esc(error.message)}`);
+      if (ids.includes(state.editingId)) startNew();
+      if (ids.includes(state.selectedId)) state.selectedId = null;
+      state.checked.clear();
+      await loadWatches();
+      await showDetail();
+    }
+  });
+}
+
+const findWatch = (id) => state.watches.find((w) => w.id === id);
+
+async function setEnabled(ids, enabled) {
+  const { error } = await sb.from("watches").update({ enabled, updated_at: new Date().toISOString() }).in("id", ids);
+  if (error) return showStatus("error", `변경하지 못했습니다: ${esc(error.message)}`);
+  await loadWatches();
+}
+
+// =====================================================================
+// Requests ("검색")
+// =====================================================================
+let tracking = null;
+async function requestRuns(watchIds) {
+  if (!watchIds.length) return;
+  const rows = watchIds.map((id) => ({ watcher: WATCHER, watch_id: id }));
+  const { data, error } = await sb.from("watch_requests").insert(rows).select("id, watch_id, status, created_at");
+  if (error) return showStatus("error", `요청을 보내지 못했습니다: ${esc(error.message)}`);
+  trackRequests(data);
 }
 
 function showStatus(kind, html) {
@@ -68,44 +157,83 @@ function showStatus(kind, html) {
   el.innerHTML = html;
 }
 
-function watchRequest(req) {
-  if (watching) { sb.removeChannel(watching.channel); clearInterval(watching.timer); }
-  const render = async (r) => {
-    if (r.status === "pending") {
-      const waited = Date.now() - Date.parse(r.created_at);
-      showStatus("pending", waited > 60_000
-        ? `⏳ 요청 #${r.id}이 1분 넘게 대기 중입니다. PC가 켜져 있고 에이전트가 실행 중인지 확인하세요.`
-        : `⏳ 요청 #${r.id}을 PC에 보냈습니다. 곧 시작합니다…`);
-    } else if (r.status === "running") {
-      showStatus("pending", `🔎 검색 중입니다 (#${r.id}). 보통 1~2분 걸립니다.`);
-    } else {
-      clearInterval(watching?.timer);
-      if (watching) sb.removeChannel(watching.channel);
-      watching = null;
-      if (r.status === "done") { showStatus("done", `✅ 검색 완료 (#${r.id}) · ${esc(r.message || "")}`); await refresh(); }
-      else showStatus("error", `⚠️ 검색 실패 (#${r.id}): ${esc(r.message || "")}`);
+function trackRequests(reqs) {
+  if (tracking) clearInterval(tracking.timer);
+  const ids = reqs.map((r) => r.id);
+  const started = Date.now();
+  const tick = async () => {
+    const { data } = await sb.from("watch_requests").select("id, watch_id, status, message").in("id", ids);
+    if (!data) return;
+    const by = (s) => data.filter((r) => r.status === s).length;
+    const done = by("done"), failed = by("error"), running = by("running"), pending = by("pending");
+    const total = data.length;
+    if (done + failed === total) {
+      clearInterval(tracking.timer); tracking = null;
+      const fail = data.filter((r) => r.status === "error");
+      showStatus(failed ? "error" : "done", failed
+        ? `⚠️ ${total}개 중 ${failed}개 실패: ${esc(fail[0].message || "")}`
+        : total === 1 ? `✅ 검색 완료 · ${esc(data[0].message || "")}` : `✅ ${total}개 검색 완료`);
+      await loadWatches();
+      await showDetail();
+      return;
     }
+    const slow = pending === total && Date.now() - started > 60_000;
+    showStatus("pending", slow
+      ? `⏳ 1분 넘게 대기 중입니다. PC가 켜져 있고 에이전트가 실행 중인지 확인하세요.`
+      : `🔎 ${total > 1 ? `${total}개 중 ${done + failed}개 완료 · ` : ""}${running ? "검색 중" : "PC에 보냄"}… 하나에 30초 안팎 걸립니다.`);
+    if (done) await loadWatches();
   };
-  const channel = sb.channel(`req-${req.id}`)
-    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "watch_requests", filter: `id=eq.${req.id}` }, (p) => render(p.new))
-    .subscribe();
-  // Fallback in case realtime is unavailable.
-  const timer = setInterval(async () => {
-    const { data } = await sb.from("watch_requests").select("id, status, message, created_at").eq("id", req.id).single();
-    if (data) render(data);
-  }, 5000);
-  watching = { channel, timer };
-  render(req);
+  tracking = { timer: setInterval(tick, 3000) };
+  tick();
 }
 
-async function resumePendingRequest() {
-  const { data } = await sb.from("watch_requests").select("id, status, message, created_at")
-    .eq("watcher", WATCHER).in("status", ["pending", "running"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
-  if (data) watchRequest(data);
+async function resumePendingRequests() {
+  const { data } = await sb.from("watch_requests").select("id, watch_id, status, created_at")
+    .eq("watcher", WATCHER).in("status", ["pending", "running"]).order("created_at", { ascending: false }).limit(50);
+  if (data?.length) trackRequests(data);
 }
 
-// ---- rendering ----
-function renderVerdict(latest) {
+// =====================================================================
+// Detail of the selected watch
+// =====================================================================
+function selectWatch(id) {
+  state.selectedId = id;
+  store.set("selected-watch", id);
+  renderWatchList();
+  showDetail().then(() => $("detail").scrollIntoView({ behavior: "smooth", block: "start" }));
+}
+
+async function showDetail() {
+  const w = findWatch(state.selectedId);
+  $("detail").hidden = !w;
+  if (!w) return;
+  $("detail-label").textContent = `선택한 감시 · ${watchTitle(w.config)} · ${watchDates(w.config)}`;
+  const latestRes = await sb.from("watch_checks").select("checked_at, config_key, snapshot")
+    .eq("watch_id", w.id).order("checked_at", { ascending: false }).limit(1).maybeSingle();
+  if (latestRes.error) throw latestRes.error;
+  const latest = latestRes.data?.snapshot;
+  if (!latest) {
+    $("verdict").className = "card verdict";
+    $("verdict").innerHTML = `<p class="muted">아직 확인 결과가 없습니다. 목록에서 ↻ 를 누르면 바로 검색합니다.</p>`;
+    for (const id of ["s-min", "s-med", "s-target", "s-hotel"]) $(id).textContent = "-";
+    $("chart").innerHTML = ""; $("rows").innerHTML = ""; $("hotel-card").hidden = true; $("insight").textContent = "";
+    return;
+  }
+  const hist = await sb.from("watch_checks").select("checked_at, summary").eq("watch_id", w.id)
+    .eq("config_key", latestRes.data.config_key).order("checked_at", { ascending: true }).limit(500);
+  if (hist.error) throw hist.error;
+  const points = hist.data.map((r) => ({ checkedAt: r.checked_at, ...r.summary }));
+  renderVerdict(latest, w);
+  renderStats(latest);
+  renderChart(points, latest.config.flight.targetPrice);
+  renderRows(points);
+  renderHotels(latest);
+  if (JSON.stringify(w.config.flight) !== JSON.stringify(latest.config.flight)) {
+    $("insight").textContent = "조건이 바뀌었습니다. 다음 확인부터 새 조건으로 기록됩니다.";
+  }
+}
+
+function renderVerdict(latest, w) {
   const v = latest.verdict;
   const el = $("verdict");
   el.className = "card verdict " + (v.alert ? "buy" : "wait");
@@ -120,7 +248,7 @@ function renderVerdict(latest) {
       <p class="muted">${v.alert ? "링크에서 직접 확인하고 결제하세요. 자동 결제는 하지 않습니다." : "구매 확률이 알림 기준을 넘거나 목표가에 닿으면 이 화면이 바뀝니다."}</p>
     </div>
     <div class="actions">${links.join("")}</div>`;
-  $("rerun").addEventListener("click", () => requestRun(null));
+  $("rerun").addEventListener("click", () => requestRuns([w.id]));
 }
 
 function renderStats(latest) {
@@ -131,7 +259,7 @@ function renderStats(latest) {
   $("s-target").textContent = c.targetPrice ? won(c.targetPrice) : "없음";
   $("s-gap").textContent = c.targetPrice ? (f.minPrice <= c.targetPrice ? "목표가 이하" : `목표까지 ${won(f.minPrice - c.targetPrice)}`) : "";
   if (!latest.hotel) $("s-hotel").textContent = "확인 안 함";
-  $("trip").textContent = `${airportLabel(c.origin)} → ${airportLabel(c.destination)} · ${c.departDate}${c.returnDate ? " ~ " + c.returnDate : " 편도"} · 성인 ${c.adults}`;
+  $("trip").textContent = `${airportLabel(c.origin)} → ${airportLabel(c.destination)} · ${rangeLabel(c.departDate, c.returnDate)} · 성인 ${c.adults}`;
   $("insight").textContent = f.googleInsight ? "Google: " + f.googleInsight : "";
   $("updated").textContent = ` 마지막 확인: ${new Date(latest.checkedAt).toLocaleString("ko-KR")}`;
 }
@@ -220,7 +348,9 @@ function setupHotelFilters() {
   ["ex-capsule", "ex-dorm", "hotel-sort"].forEach((id) => $(id).addEventListener("change", drawHotels));
 }
 
-// ---- airport combobox ----
+// =====================================================================
+// Editor: airports
+// =====================================================================
 function searchAirports(query) {
   const q = query.trim().toLowerCase();
   if (!q) return null;
@@ -229,15 +359,14 @@ function searchAirports(query) {
   return hits.sort((a, b) => (b[0].toLowerCase() === q) - (a[0].toLowerCase() === q) || b[5] - a[5]);
 }
 
-// How often each airport was used, per field: past search requests (any device) + picks on this browser.
+// How often each airport was used, per field: saved watches + picks on this browser.
 const frequent = { origin: {}, destination: {} };
 function bump(field, code, n = 1) { if (code) frequent[field][code] = (frequent[field][code] || 0) + n; }
-async function loadFrequent() {
+function loadFrequent() {
+  frequent.origin = {}; frequent.destination = {};
   const local = store.get("airport-picks", { origin: {}, destination: {} });
   for (const f of ["origin", "destination"]) for (const [c, n] of Object.entries(local[f] || {})) bump(f, c, n);
-  const { data } = await sb.from("watch_requests").select("config").eq("watcher", WATCHER)
-    .not("config", "is", null).order("created_at", { ascending: false }).limit(200);
-  for (const r of data || []) { bump("origin", r.config?.flight?.origin); bump("destination", r.config?.flight?.destination); }
+  for (const w of state.watches) { bump("origin", w.config?.flight?.origin, 2); bump("destination", w.config?.flight?.destination, 2); }
 }
 function rememberPick(field, code) {
   const local = store.get("airport-picks", { origin: {}, destination: {} });
@@ -255,14 +384,25 @@ function setupCombo(field) {
   const list = box.querySelector("[role=listbox]");
   let active = -1;
 
+  const shownValue = () => (state.bulk ? "" : airportLabel(hidden.value));
   const close = () => { list.hidden = true; input.setAttribute("aria-expanded", "false"); active = -1; };
-  const choose = (code) => { hidden.value = code; input.value = airportLabel(code); close(); rememberPick(field, code); };
-  const row = (a, i) => `<li role="option" id="${field}-opt-${i}" data-code="${a[0]}" class="combo-item">
-      <span class="code">${a[0]}</span><span class="name">${esc(a[2])} · ${esc(a[1])}</span><span class="country">${esc(window.COUNTRIES[a[4]]?.[0] || "")}</span></li>`;
+  const choose = (code) => {
+    rememberPick(field, code);
+    if (state.bulk) {
+      if (!state.multi[field].includes(code)) state.multi[field].push(code);
+      input.value = ""; renderChips(field); updateBulkPreview(); open(); return;
+    }
+    hidden.value = code; input.value = airportLabel(code); close();
+  };
+  const row = (a, i) => {
+    const picked = state.bulk && state.multi[field].includes(a[0]);
+    return `<li role="option" id="${field}-opt-${i}" data-code="${a[0]}" class="combo-item${picked ? " picked" : ""}" aria-selected="${picked}">
+      <span class="code">${a[0]}</span><span class="name">${esc(a[2])} · ${esc(a[1])}</span><span class="country">${picked ? "✓" : esc(window.COUNTRIES[a[4]]?.[0] || "")}</span></li>`;
+  };
   const group = (title, airports, start) =>
     `<li class="combo-group" role="presentation">${esc(title)}</li>` + airports.map((a, j) => row(a, start + j)).join("");
   const open = () => {
-    const hits = searchAirports(input.value === airportLabel(hidden.value) ? "" : input.value);
+    const hits = searchAirports(input.value === shownValue() ? "" : input.value);
     let html = "", n = 0;
     if (hits) {
       html = hits.slice(0, 40).map((a) => row(a, n++)).join("") || `<li class="combo-empty">결과 없음. 공항 코드(예: NRT)로도 찾을 수 있습니다.</li>`;
@@ -301,31 +441,45 @@ function setupCombo(field) {
       const opts = list.querySelectorAll("[role=option]");
       const pick = opts[active >= 0 ? active : 0];
       if (pick) choose(pick.dataset.code);
-    } else if (e.key === "Escape") { close(); input.value = airportLabel(hidden.value); }
+    } else if (e.key === "Escape") { close(); input.value = shownValue(); }
+    else if (e.key === "Backspace" && state.bulk && !input.value && state.multi[field].length) {
+      state.multi[field].pop(); renderChips(field); updateBulkPreview();
+    }
   });
   list.addEventListener("mousedown", (e) => {
     const li = e.target.closest("[role=option]");
     if (li) { e.preventDefault(); choose(li.dataset.code); }
   });
-  input.addEventListener("blur", () => { close(); input.value = airportLabel(hidden.value); });
-  combos[field] = { set: (code) => { hidden.value = code; input.value = airportLabel(code); }, get: () => hidden.value };
+  input.addEventListener("blur", () => { close(); input.value = shownValue(); });
+  combos[field] = {
+    set: (code) => { hidden.value = code; input.value = shownValue(); },
+    get: () => hidden.value,
+    refresh: () => { input.value = shownValue(); input.placeholder = state.bulk ? "여러 공항 추가" : (field === "origin" ? "도시·국가·공항 코드" : "예: 일본, 도쿄, NRT"); },
+  };
 }
 
-// ---- date range picker: first click = 가는 날, next later click = 오는 날 ----
-const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const parseISO = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
-const DOW = ["일", "월", "화", "수", "목", "금", "토"];
-const fmtDay = (s) => { const d = parseISO(s); return `${d.getMonth() + 1}/${d.getDate()}(${DOW[d.getDay()]})`; };
+// chips for bulk mode: origin / destination / dates
+function renderChips(kind) {
+  const box = document.querySelector(`[data-chips="${kind}"]`);
+  box.hidden = !state.bulk;
+  if (!state.bulk) return;
+  const items = state.multi[kind];
+  box.innerHTML = items.map((v, i) => {
+    const label = kind === "dates" ? rangeLabel(v.depart, v.ret) : `${v} ${cityOf(v)}`;
+    return `<span class="pill">${esc(label)}<button type="button" data-remove="${kind}:${i}" aria-label="${esc(label)} 빼기">×</button></span>`;
+  }).join("") || `<span class="muted small">${kind === "dates" ? "달력에서 범위를 고를 때마다 추가됩니다" : "목록에서 고를 때마다 추가됩니다"}</span>`;
+}
 
+// =====================================================================
+// Editor: date range picker — first click = 가는 날, next later click = 오는 날
+// =====================================================================
 const dates = { depart: "", ret: "", picking: "depart", viewMonth: null };
 function updateDateButton() {
   const b = $("date-button");
   const f = $("cfg").elements;
   f.departDate.value = dates.depart; f.returnDate.value = dates.ret;
-  if (!dates.depart) { b.textContent = "날짜 선택"; return; }
-  if (!dates.ret) { b.textContent = `${fmtDay(dates.depart)} · 편도`; return; }
-  const nights = Math.round((parseISO(dates.ret) - parseISO(dates.depart)) / 86_400_000);
-  b.textContent = `${fmtDay(dates.depart)} ~ ${fmtDay(dates.ret)} · ${nights}박`;
+  if (state.bulk) { b.textContent = state.multi.dates.length ? `날짜 범위 ${state.multi.dates.length}개 · 더 추가` : "날짜 범위 추가"; return; }
+  b.textContent = dates.depart ? rangeLabel(dates.depart, dates.ret) : "날짜 선택";
 }
 
 function renderCalendar() {
@@ -362,7 +516,9 @@ function renderCalendar() {
 
 function openCalendar() {
   dates.picking = "depart";
-  dates.viewMonth = dates.depart ? parseISO(dates.depart) : new Date();
+  if (state.bulk) { dates.depart = ""; dates.ret = ""; }
+  const base = dates.depart || state.multi.dates.at(-1)?.depart;
+  dates.viewMonth = base ? parseISO(base) : new Date();
   dates.viewMonth.setDate(1);
   renderCalendar();
   $("calendar").hidden = false;
@@ -370,13 +526,22 @@ function openCalendar() {
 }
 function closeCalendar() { $("calendar").hidden = true; $("date-button").setAttribute("aria-expanded", "false"); }
 
+function commitRange() {
+  // Bulk mode collects ranges; single mode just keeps the one range.
+  if (state.bulk && dates.depart) {
+    if (!state.multi.dates.some((r) => r.depart === dates.depart && r.ret === dates.ret)) state.multi.dates.push({ depart: dates.depart, ret: dates.ret });
+    renderChips("dates"); updateBulkPreview();
+  }
+  updateDateButton();
+}
+
 function setupCalendar() {
   $("date-button").addEventListener("click", () => ($("calendar").hidden ? openCalendar() : closeCalendar()));
   $("calendar").addEventListener("click", (e) => {
     const nav = e.target.closest("[data-nav]");
     if (nav) { dates.viewMonth.setMonth(dates.viewMonth.getMonth() + Number(nav.dataset.nav)); renderCalendar(); return; }
     const act = e.target.closest("[data-act]")?.dataset.act;
-    if (act === "oneway") { dates.ret = ""; updateDateButton(); closeCalendar(); return; }
+    if (act === "oneway") { dates.ret = ""; commitRange(); closeCalendar(); return; }
     if (act === "done") { closeCalendar(); return; }
     const day = e.target.closest("[data-date]")?.dataset.date;
     if (!day) return;
@@ -385,7 +550,7 @@ function setupCalendar() {
       updateDateButton(); renderCalendar();
     } else {
       dates.ret = day; dates.picking = "depart";
-      updateDateButton(); closeCalendar();
+      commitRange(); closeCalendar();
     }
   });
   document.addEventListener("mousedown", (e) => {
@@ -394,7 +559,9 @@ function setupCalendar() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeCalendar(); });
 }
 
-// ---- config form ----
+// =====================================================================
+// Editor: form
+// =====================================================================
 function setSelect(select, value) {
   const v = String(value);
   if (![...select.options].some((o) => o.value === v)) select.add(new Option(v, v));
@@ -407,41 +574,162 @@ function syncHotelFields() {
   document.querySelectorAll(".hotel-input, #minRating").forEach((el) => (el.disabled = !on));
 }
 
-let formReady = false;
-function setupForm(cfg) {
-  // Fill once; later refreshes must not overwrite what the user is editing.
-  if (formReady) return;
-  formReady = true;
+function fillForm(cfg) {
   const f = $("cfg").elements, c = cfg.flight, h = cfg.hotel || {};
   combos.origin.set(c.origin);
   combos.destination.set(c.destination);
   dates.depart = c.departDate; dates.ret = c.returnDate || "";
-  updateDateButton();
   f.adults.value = c.adults; f.targetPrice.value = c.targetPrice;
   setSelect(f.minBuy, Math.round((cfg.alert?.minBuyProbability ?? 0.7) * 100));
   f.hotelEnabled.checked = !!h.enabled; f.hotelQuery.value = h.query || "";
   setSelect(f.minRating, Number(h.minRating) || 0);
   syncHotelFields();
+  updateDateButton();
 }
 
-function buildConfig() {
+// Shared fields (everything except route and dates).
+function sharedConfig() {
   const f = $("cfg").elements;
-  const flight = {
-    origin: f.origin.value, destination: f.destination.value,
-    departDate: f.departDate.value, returnDate: f.returnDate.value,
-    adults: Number(f.adults.value), currency: "KRW", targetPrice: Number(f.targetPrice.value),
-  };
   return {
-    flight,
-    hotel: {
-      enabled: f.hotelEnabled.checked, query: f.hotelQuery.value.trim(),
-      checkIn: flight.departDate, checkOut: flight.returnDate, minRating: Number(f.minRating.value),
-    },
+    adults: Number(f.adults.value), targetPrice: Number(f.targetPrice.value),
+    hotel: { enabled: f.hotelEnabled.checked, query: f.hotelQuery.value.trim(), minRating: Number(f.minRating.value) },
     alert: { minBuyProbability: Number(f.minBuy.value) / 100 },
   };
 }
 
-function setupFormEvents() {
+function makeConfig(origin, destination, depart, ret, shared) {
+  return {
+    flight: { origin, destination, departDate: depart, returnDate: ret || "", adults: shared.adults, currency: "KRW", targetPrice: shared.targetPrice },
+    hotel: { ...shared.hotel, checkIn: depart, checkOut: ret || "" },
+    alert: shared.alert,
+  };
+}
+
+// Every config the editor currently describes (one in single mode, the combinations in bulk mode).
+function buildConfigs() {
+  const shared = sharedConfig();
+  if (!state.bulk) {
+    const f = $("cfg").elements;
+    return [makeConfig(f.origin.value, f.destination.value, f.departDate.value, f.returnDate.value, shared)];
+  }
+  const out = [];
+  for (const o of state.multi.origin) for (const d of state.multi.destination) for (const r of state.multi.dates) {
+    if (o !== d) out.push(makeConfig(o, d, r.depart, r.ret, shared));
+  }
+  return out;
+}
+
+function updateBulkPreview() {
+  const box = $("bulk-preview");
+  box.hidden = !state.bulk;
+  if (!state.bulk) return;
+  const m = state.multi;
+  const configs = buildConfigs();
+  const missing = [!m.origin.length && "출발", !m.destination.length && "도착", !m.dates.length && "날짜"].filter(Boolean);
+  if (missing.length) { box.innerHTML = `<b>여러 개 한 번에</b> · ${missing.join(", ")}을(를) 하나 이상 고르세요. 나머지 조건은 모든 감시에 똑같이 들어갑니다.`; return; }
+  const over = configs.length > MAX_BULK;
+  box.innerHTML = `<b>${m.origin.length} × ${m.destination.length} × ${m.dates.length} = ${configs.length}개</b> 감시가 만들어집니다${over ? ` <span class="warn">(최대 ${MAX_BULK}개)</span>` : ""}
+    <ul>${configs.slice(0, 8).map((c) => `<li>${esc(watchTitle(c))} · ${esc(watchDates(c))}</li>`).join("")}${configs.length > 8 ? `<li class="muted">외 ${configs.length - 8}개</li>` : ""}</ul>`;
+}
+
+function setBulk(on) {
+  state.bulk = on;
+  $("bulk-toggle").checked = on;
+  $("editor").classList.toggle("bulk", on);
+  if (on) {
+    // Start the lists from what is in the single fields.
+    const f = $("cfg").elements;
+    state.multi.origin = f.origin.value ? [f.origin.value] : [];
+    state.multi.destination = f.destination.value ? [f.destination.value] : [];
+    state.multi.dates = dates.depart ? [{ depart: dates.depart, ret: dates.ret }] : [];
+  }
+  for (const k of ["origin", "destination", "dates"]) renderChips(k);
+  combos.origin.refresh(); combos.destination.refresh();
+  $("swap").hidden = on;
+  updateDateButton();
+  updateBulkPreview();
+  updateEditorHead();
+}
+
+function updateEditorHead() {
+  const editing = state.editingId != null && !state.bulk;
+  const w = editing ? findWatch(state.editingId) : null;
+  $("editor-title").textContent = editing ? "감시 편집" : state.bulk ? "여러 감시 한 번에 추가" : "새 감시";
+  $("editor-sub").textContent = editing && w ? `${watchTitle(w.config)} · ${watchDates(w.config)}`
+    : state.bulk ? "출발·도착·날짜를 여러 개 고르면 조합마다 감시가 생깁니다. 나머지 조건은 똑같이 들어갑니다."
+    : "조건을 정하고 추가하면 바로 검색합니다.";
+  $("run-btn").textContent = editing ? "저장하고 검색" : "추가하고 검색";
+  $("new-watch").hidden = !editing;
+  $("editor").classList.toggle("editing", editing);
+}
+
+function editWatch(w) {
+  if (state.bulk) setBulk(false);
+  state.editingId = w.id;
+  fillForm(w.config);
+  updateEditorHead();
+  $("editor").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function copyWatch(w) {
+  if (state.bulk) setBulk(false);
+  state.editingId = null;
+  fillForm(w.config);
+  updateEditorHead();
+  $("form-msg").textContent = "복제했습니다. 바꿀 조건만 고친 뒤 추가하세요.";
+  $("editor").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function startNew() {
+  state.editingId = null;
+  updateEditorHead();
+  $("form-msg").textContent = "";
+}
+
+function validate(configs) {
+  if (!configs.length) return state.bulk ? "출발·도착·날짜를 하나 이상씩 고르세요." : "조건을 확인하세요.";
+  if (configs.length > MAX_BULK) return `한 번에 최대 ${MAX_BULK}개까지 만들 수 있습니다.`;
+  for (const c of configs) {
+    const f = c.flight;
+    if (!f.origin || !f.destination) return "출발·도착 공항을 목록에서 골라 주세요.";
+    if (f.origin === f.destination) return "출발과 도착 공항이 같습니다.";
+    if (!f.departDate) return "날짜를 골라 주세요.";
+  }
+  return null;
+}
+
+async function saveEditor(runAfter) {
+  const configs = buildConfigs();
+  const msg = $("form-msg");
+  const problem = validate(configs);
+  if (problem) { msg.textContent = problem; return; }
+  msg.textContent = "저장 중…";
+  const stamp = new Date().toISOString();
+  let ids, skipped = 0;
+  if (state.editingId != null && !state.bulk) {
+    const { error } = await sb.from("watches").update({ config: configs[0], updated_at: stamp, last_error: null }).eq("id", state.editingId);
+    if (error) { msg.textContent = `저장하지 못했습니다: ${error.message}`; return; }
+    ids = [state.editingId];
+  } else {
+    // Skip combinations that already exist as a watch with the same flight conditions.
+    const existing = new Set(state.watches.map((w) => JSON.stringify(w.config.flight)));
+    const fresh = configs.filter((c) => !existing.has(JSON.stringify(c.flight)));
+    skipped = configs.length - fresh.length;
+    if (!fresh.length) { msg.textContent = "이미 같은 조건의 감시가 있습니다. 목록에서 ↻ 로 검색하세요."; return; }
+    const { data, error } = await sb.from("watches").insert(fresh.map((config) => ({ watcher: WATCHER, config }))).select("id");
+    if (error) { msg.textContent = `추가하지 못했습니다: ${error.message}`; return; }
+    ids = data.map((r) => r.id);
+  }
+  await loadWatches();
+  loadFrequent();
+  if (ids.length === 1) selectWatch(ids[0]);
+  if (state.bulk) setBulk(false);
+  startNew();
+  msg.textContent = (ids.length > 1 ? `${ids.length}개 저장했습니다.` : "저장했습니다.") + (skipped ? ` 이미 있는 ${skipped}개는 건너뛰었습니다.` : "");
+  if (runAfter) await requestRuns(ids);
+}
+
+function setupEditor() {
   setupCombo("origin");
   setupCombo("destination");
   setupCalendar();
@@ -449,7 +737,6 @@ function setupFormEvents() {
     const o = combos.origin.get(), d = combos.destination.get();
     combos.origin.set(d); combos.destination.set(o);
   });
-  // Target price: ▲▼ buttons and arrow keys (input step) move by 10,000원.
   const price = $("targetPrice");
   document.querySelectorAll(".stepper [data-step]").forEach((b) => b.addEventListener("click", () => {
     price.value = Math.max(0, Math.round((Number(price.value) || 0) / 10000) * 10000 + Number(b.dataset.step));
@@ -460,16 +747,29 @@ function setupFormEvents() {
     $("minbuy-info").setAttribute("aria-expanded", String(!help.hidden));
   });
   $("cfg").elements.hotelEnabled.addEventListener("change", syncHotelFields);
-  $("cfg").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const cfg = buildConfig();
-    const msg = $("form-msg");
-    if (!cfg.flight.origin || !cfg.flight.destination) { msg.textContent = "출발·도착 공항을 목록에서 골라 주세요."; return; }
-    if (cfg.flight.origin === cfg.flight.destination) { msg.textContent = "출발과 도착 공항이 같습니다."; return; }
-    if (!cfg.flight.departDate) { msg.textContent = "날짜를 골라 주세요."; return; }
-    msg.textContent = "";
-    requestRun(cfg);
+  $("bulk-toggle").addEventListener("change", (e) => { if (e.target.checked) state.editingId = null; setBulk(e.target.checked); });
+  $("new-watch").addEventListener("click", startNew);
+  $("editor").addEventListener("click", (e) => {
+    const rm = e.target.closest("[data-remove]")?.dataset.remove;
+    if (!rm) return;
+    const [kind, i] = rm.split(":");
+    state.multi[kind].splice(Number(i), 1);
+    renderChips(kind); updateBulkPreview(); updateDateButton();
   });
+  $("save-only").addEventListener("click", () => saveEditor(false));
+  $("cfg").addEventListener("submit", (e) => { e.preventDefault(); saveEditor(true); });
+}
+
+// =====================================================================
+// Start
+// =====================================================================
+function subscribeLive() {
+  sb.channel("watches-live")
+    .on("postgres_changes", { event: "*", schema: "public", table: "watches" }, async (p) => {
+      await loadWatches();
+      if (p.new?.id === state.selectedId && p.new?.last_checked_at !== p.old?.last_checked_at) await showDetail();
+    })
+    .subscribe();
 }
 
 (async () => {
@@ -477,13 +777,27 @@ function setupFormEvents() {
   sb = window.wwa.sb;
   $("logout").hidden = false;
   $("logout").addEventListener("click", window.wwa.logout);
-  setupFormEvents();
+  setupEditor();
+  setupWatchList();
   setupHotelFilters();
   try {
-    await Promise.all([refresh(), loadFrequent().catch((e) => console.warn("frequent airports:", e))]);
-    await resumePendingRequest();
+    await loadWatches();
+    loadFrequent();
+    // Editor starts as a copy of the most recent watch, so a new search only needs the changes.
+    const recent = state.watches.at(-1);
+    fillForm(recent?.config ?? {
+      flight: { origin: "ICN", destination: "", departDate: "", returnDate: "", adults: 1, targetPrice: 0 },
+      hotel: { enabled: false, query: "", minRating: 0 }, alert: { minBuyProbability: 0.7 },
+    });
+    updateEditorHead();
+    const saved = store.get("selected-watch", null);
+    state.selectedId = findWatch(saved) ? saved : recent?.id ?? null;
+    renderWatchList();
+    await showDetail();
+    await resumePendingRequests();
+    subscribeLive();
   } catch (e) {
-    $("verdict").innerHTML = `<p class="muted">데이터를 불러오지 못했습니다: ${esc(e.message)}</p>`;
+    $("watch-rows").innerHTML = `<tr><td colspan="7" class="muted">데이터를 불러오지 못했습니다: ${esc(e.message)}</td></tr>`;
     console.error(e);
   }
 })();

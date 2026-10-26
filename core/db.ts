@@ -28,5 +28,9 @@ export const db = {
   update: (table: string, query: string, patch: unknown) => call("PATCH", `${table}?${query}`, patch, "return=minimal"),
 };
 
-export type Request = { id: number; watcher: string; config: unknown | null; status: string; created_at: string };
+export type Request = { id: number; watcher: string; watch_id: number | null; status: string; created_at: string };
+export type Watch = {
+  id: number; watcher: string; config: unknown; enabled: boolean;
+  last_checked_at: string | null; last_summary: unknown; last_error: string | null;
+};
 export type Check = { id: number; watcher: string; checked_at: string; config_key: string; summary: any; snapshot: any };
