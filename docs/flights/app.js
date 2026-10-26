@@ -224,6 +224,24 @@ function searchAirports(query) {
   return hits.sort((a, b) => (b[0].toLowerCase() === q) - (a[0].toLowerCase() === q) || b[5] - a[5]);
 }
 
+// How often each airport was used, per field: past search requests (any device) + picks on this browser.
+const frequent = { origin: {}, destination: {} };
+function bump(field, code, n = 1) { if (code) frequent[field][code] = (frequent[field][code] || 0) + n; }
+async function loadFrequent() {
+  const local = store.get("airport-picks", { origin: {}, destination: {} });
+  for (const f of ["origin", "destination"]) for (const [c, n] of Object.entries(local[f] || {})) bump(f, c, n);
+  const { data } = await sb.from("watch_requests").select("config").eq("watcher", WATCHER)
+    .not("config", "is", null).order("created_at", { ascending: false }).limit(200);
+  for (const r of data || []) { bump("origin", r.config?.flight?.origin); bump("destination", r.config?.flight?.destination); }
+}
+function rememberPick(field, code) {
+  const local = store.get("airport-picks", { origin: {}, destination: {} });
+  local[field] = local[field] || {};
+  local[field][code] = (local[field][code] || 0) + 1;
+  store.set("airport-picks", local);
+  bump(field, code);
+}
+
 const combos = {};
 function setupCombo(field) {
   const box = document.querySelector(`.combo[data-field="${field}"]`);
@@ -233,21 +251,25 @@ function setupCombo(field) {
   let active = -1;
 
   const close = () => { list.hidden = true; input.setAttribute("aria-expanded", "false"); active = -1; };
-  const choose = (code) => { hidden.value = code; input.value = airportLabel(code); close(); updatePreview(); };
+  const choose = (code) => { hidden.value = code; input.value = airportLabel(code); close(); rememberPick(field, code); };
   const row = (a, i) => `<li role="option" id="${field}-opt-${i}" data-code="${a[0]}" class="combo-item">
       <span class="code">${a[0]}</span><span class="name">${esc(a[2])} · ${esc(a[1])}</span><span class="country">${esc(window.COUNTRIES[a[4]]?.[0] || "")}</span></li>`;
+  const group = (title, airports, start) =>
+    `<li class="combo-group" role="presentation">${esc(title)}</li>` + airports.map((a, j) => row(a, start + j)).join("");
   const open = () => {
     const hits = searchAirports(input.value === airportLabel(hidden.value) ? "" : input.value);
-    let html, n = 0;
+    let html = "", n = 0;
     if (hits) {
-      html = hits.slice(0, 40).map(row).join("") || `<li class="combo-empty">결과 없음. 공항 코드(예: NRT)로도 찾을 수 있습니다.</li>`;
+      html = hits.slice(0, 40).map((a) => row(a, n++)).join("") || `<li class="combo-empty">결과 없음. 공항 코드(예: NRT)로도 찾을 수 있습니다.</li>`;
     } else {
-      // No query: every country in order, airports by size within it.
-      html = COUNTRY_ORDER.map((cc) => {
-        const group = window.AIRPORTS.filter((a) => a[4] === cc).sort((a, b) => b[5] - a[5]);
-        if (!group.length) return "";
-        return `<li class="combo-group" role="presentation">${esc(window.COUNTRIES[cc][0])}</li>` + group.map((a) => row(a, n++)).join("");
-      }).join("");
+      // No query: airports used most often first, then every country with airports by size.
+      const top = Object.entries(frequent[field]).sort((a, b) => b[1] - a[1]).slice(0, 6)
+        .map(([c]) => AIRPORT_BY_CODE[c]).filter(Boolean);
+      if (top.length) { html += group("자주 찾은 공항", top, n); n += top.length; }
+      for (const cc of COUNTRY_ORDER) {
+        const g = window.AIRPORTS.filter((a) => a[4] === cc).sort((a, b) => b[5] - a[5]);
+        if (g.length) { html += group(window.COUNTRIES[cc][0], g, n); n += g.length; }
+      }
     }
     list.innerHTML = html;
     list.hidden = false;
@@ -281,7 +303,90 @@ function setupCombo(field) {
     if (li) { e.preventDefault(); choose(li.dataset.code); }
   });
   input.addEventListener("blur", () => { close(); input.value = airportLabel(hidden.value); });
-  combos[field] = (code) => { hidden.value = code; input.value = airportLabel(code); };
+  combos[field] = { set: (code) => { hidden.value = code; input.value = airportLabel(code); }, get: () => hidden.value };
+}
+
+// ---- date range picker: first click = 가는 날, next later click = 오는 날 ----
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const parseISO = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const DOW = ["일", "월", "화", "수", "목", "금", "토"];
+const fmtDay = (s) => { const d = parseISO(s); return `${d.getMonth() + 1}/${d.getDate()}(${DOW[d.getDay()]})`; };
+
+const dates = { depart: "", ret: "", picking: "depart", viewMonth: null };
+function updateDateButton() {
+  const b = $("date-button");
+  const f = $("cfg").elements;
+  f.departDate.value = dates.depart; f.returnDate.value = dates.ret;
+  if (!dates.depart) { b.textContent = "날짜 선택"; return; }
+  if (!dates.ret) { b.textContent = `${fmtDay(dates.depart)} · 편도`; return; }
+  const nights = Math.round((parseISO(dates.ret) - parseISO(dates.depart)) / 86_400_000);
+  b.textContent = `${fmtDay(dates.depart)} ~ ${fmtDay(dates.ret)} · ${nights}박`;
+}
+
+function renderCalendar() {
+  const cal = $("calendar");
+  const today = iso(new Date());
+  const month = (offset) => {
+    const first = new Date(dates.viewMonth.getFullYear(), dates.viewMonth.getMonth() + offset, 1);
+    const days = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+    let cells = DOW.map((d) => `<span class="dow">${d}</span>`).join("") + "<span></span>".repeat(first.getDay());
+    for (let d = 1; d <= days; d++) {
+      const s = iso(new Date(first.getFullYear(), first.getMonth(), d));
+      const cls = ["day"];
+      if (s < today) cls.push("past");
+      if (s === dates.depart) cls.push("start");
+      if (s === dates.ret) cls.push("end");
+      if (dates.depart && dates.ret && s > dates.depart && s < dates.ret) cls.push("between");
+      cells += `<button type="button" class="${cls.join(" ")}" data-date="${s}" ${s < today ? "disabled" : ""}>${d}</button>`;
+    }
+    return `<div class="month"><div class="month-title">${first.getFullYear()}년 ${first.getMonth() + 1}월</div><div class="days">${cells}</div></div>`;
+  };
+  const hint = dates.picking === "depart" ? "가는 날을 고르세요" : "오는 날을 고르세요 (편도면 '편도')";
+  cal.innerHTML = `
+    <div class="cal-head">
+      <button type="button" class="cal-nav" data-nav="-1" aria-label="이전 달">‹</button>
+      <span class="cal-hint">${hint}</span>
+      <button type="button" class="cal-nav" data-nav="1" aria-label="다음 달">›</button>
+    </div>
+    <div class="months">${month(0)}${month(1)}</div>
+    <div class="cal-foot">
+      <button type="button" class="button ghost" data-act="oneway">편도</button>
+      <button type="button" class="button" data-act="done">완료</button>
+    </div>`;
+}
+
+function openCalendar() {
+  dates.picking = "depart";
+  dates.viewMonth = dates.depart ? parseISO(dates.depart) : new Date();
+  dates.viewMonth.setDate(1);
+  renderCalendar();
+  $("calendar").hidden = false;
+  $("date-button").setAttribute("aria-expanded", "true");
+}
+function closeCalendar() { $("calendar").hidden = true; $("date-button").setAttribute("aria-expanded", "false"); }
+
+function setupCalendar() {
+  $("date-button").addEventListener("click", () => ($("calendar").hidden ? openCalendar() : closeCalendar()));
+  $("calendar").addEventListener("click", (e) => {
+    const nav = e.target.closest("[data-nav]");
+    if (nav) { dates.viewMonth.setMonth(dates.viewMonth.getMonth() + Number(nav.dataset.nav)); renderCalendar(); return; }
+    const act = e.target.closest("[data-act]")?.dataset.act;
+    if (act === "oneway") { dates.ret = ""; updateDateButton(); closeCalendar(); return; }
+    if (act === "done") { closeCalendar(); return; }
+    const day = e.target.closest("[data-date]")?.dataset.date;
+    if (!day) return;
+    if (dates.picking === "depart" || day < dates.depart) {
+      dates.depart = day; dates.ret = ""; dates.picking = "return";
+      updateDateButton(); renderCalendar();
+    } else {
+      dates.ret = day; dates.picking = "depart";
+      updateDateButton(); closeCalendar();
+    }
+  });
+  document.addEventListener("mousedown", (e) => {
+    if (!$("calendar").hidden && !e.target.closest(".dates")) closeCalendar();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeCalendar(); });
 }
 
 // ---- config form ----
@@ -291,20 +396,27 @@ function setSelect(select, value) {
   select.value = v;
 }
 
+function syncHotelFields() {
+  const on = $("cfg").elements.hotelEnabled.checked;
+  document.querySelectorAll(".hotel-opt").forEach((el) => el.classList.toggle("disabled", !on));
+  document.querySelectorAll(".hotel-opt input, .hotel-opt select").forEach((el) => (el.disabled = !on));
+}
+
 let formReady = false;
 function setupForm(cfg) {
   // Fill once; later refreshes must not overwrite what the user is editing.
   if (formReady) return;
   formReady = true;
   const f = $("cfg").elements, c = cfg.flight, h = cfg.hotel || {};
-  combos.origin(c.origin);
-  combos.destination(c.destination);
-  f.departDate.value = c.departDate; f.returnDate.value = c.returnDate || "";
+  combos.origin.set(c.origin);
+  combos.destination.set(c.destination);
+  dates.depart = c.departDate; dates.ret = c.returnDate || "";
+  updateDateButton();
   f.adults.value = c.adults; f.targetPrice.value = c.targetPrice;
   setSelect(f.minBuy, Math.round((cfg.alert?.minBuyProbability ?? 0.7) * 100));
   f.hotelEnabled.checked = !!h.enabled; f.hotelQuery.value = h.query || "";
   setSelect(f.minRating, Number(h.minRating) || 0);
-  updatePreview();
+  syncHotelFields();
 }
 
 function buildConfig() {
@@ -324,24 +436,34 @@ function buildConfig() {
   };
 }
 
-function updatePreview() { $("preview").textContent = JSON.stringify(buildConfig(), null, 2); }
-
 function setupFormEvents() {
   setupCombo("origin");
   setupCombo("destination");
-  $("cfg").addEventListener("input", updatePreview);
-  $("cfg").addEventListener("change", updatePreview);
+  setupCalendar();
+  $("swap").addEventListener("click", () => {
+    const o = combos.origin.get(), d = combos.destination.get();
+    combos.origin.set(d); combos.destination.set(o);
+  });
+  // Target price: ▲▼ buttons and arrow keys (input step) move by 10,000원.
+  const price = $("targetPrice");
+  document.querySelectorAll(".stepper [data-step]").forEach((b) => b.addEventListener("click", () => {
+    price.value = Math.max(0, Math.round((Number(price.value) || 0) / 10000) * 10000 + Number(b.dataset.step));
+  }));
+  $("minbuy-info").addEventListener("click", () => {
+    const help = $("minbuy-help");
+    help.hidden = !help.hidden;
+    $("minbuy-info").setAttribute("aria-expanded", String(!help.hidden));
+  });
+  $("cfg").elements.hotelEnabled.addEventListener("change", syncHotelFields);
   $("cfg").addEventListener("submit", (e) => {
     e.preventDefault();
     const cfg = buildConfig();
-    if (!cfg.flight.origin || !cfg.flight.destination) { $("copied").textContent = "출발·도착 공항을 목록에서 골라 주세요."; return; }
-    if (cfg.flight.returnDate && cfg.flight.returnDate < cfg.flight.departDate) { $("copied").textContent = "오는 날이 가는 날보다 빠릅니다."; return; }
-    $("copied").textContent = "";
+    const msg = $("form-msg");
+    if (!cfg.flight.origin || !cfg.flight.destination) { msg.textContent = "출발·도착 공항을 목록에서 골라 주세요."; return; }
+    if (cfg.flight.origin === cfg.flight.destination) { msg.textContent = "출발과 도착 공항이 같습니다."; return; }
+    if (!cfg.flight.departDate) { msg.textContent = "날짜를 골라 주세요."; return; }
+    msg.textContent = "";
     requestRun(cfg);
-  });
-  $("copy-btn").addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(JSON.stringify(buildConfig(), null, 2) + "\n"); $("copied").textContent = "설정을 복사했습니다."; }
-    catch { $("copied").textContent = "복사 권한이 없습니다. '설정 JSON 보기'에서 직접 복사하세요."; }
   });
 }
 
@@ -353,7 +475,7 @@ function setupFormEvents() {
   setupFormEvents();
   setupHotelFilters();
   try {
-    await refresh();
+    await Promise.all([refresh(), loadFrequent().catch((e) => console.warn("frequent airports:", e))]);
     await resumePendingRequest();
   } catch (e) {
     $("verdict").innerHTML = `<p class="muted">데이터를 불러오지 못했습니다: ${esc(e.message)}</p>`;

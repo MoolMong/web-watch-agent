@@ -17,6 +17,84 @@
 </header>
 
 <main class="wrap">
+  <section class="card search-card">
+    <form id="cfg" class="search-form" autocomplete="off">
+      <div class="route">
+        <div class="field combo" data-field="origin">
+          <label for="origin-input">출발</label>
+          <input id="origin-input" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="origin-list" placeholder="도시·국가·공항 코드">
+          <input type="hidden" name="origin">
+          <ul id="origin-list" class="combo-list" role="listbox" hidden></ul>
+        </div>
+        <button type="button" id="swap" class="swap" title="출발·도착 바꾸기" aria-label="출발과 도착 바꾸기">⇄</button>
+        <div class="field combo" data-field="destination">
+          <label for="destination-input">도착</label>
+          <input id="destination-input" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="destination-list" placeholder="예: 일본, 도쿄, NRT">
+          <input type="hidden" name="destination">
+          <ul id="destination-list" class="combo-list" role="listbox" hidden></ul>
+        </div>
+      </div>
+
+      <div class="field dates">
+        <label for="date-button">날짜</label>
+        <button type="button" id="date-button" class="date-button" aria-haspopup="dialog" aria-expanded="false">날짜 선택</button>
+        <input type="hidden" name="departDate">
+        <input type="hidden" name="returnDate">
+        <div id="calendar" class="calendar" role="dialog" aria-label="날짜 선택" hidden></div>
+      </div>
+
+      <div class="field">
+        <label for="adults">성인</label>
+        <input id="adults" name="adults" type="number" min="1" max="9" required>
+      </div>
+
+      <div class="field">
+        <label for="targetPrice">목표가 <small>(0 = 사용 안 함)</small></label>
+        <div class="stepper">
+          <button type="button" data-step="-10000" aria-label="목표가 1만 원 내리기">▼</button>
+          <input id="targetPrice" name="targetPrice" type="number" min="0" step="10000" inputmode="numeric" required>
+          <button type="button" data-step="10000" aria-label="목표가 1만 원 올리기">▲</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="minBuy">알림 민감도 <button type="button" class="info" id="minbuy-info" aria-expanded="false" aria-controls="minbuy-help">?</button></label>
+        <select id="minBuy" name="minBuy">
+          <option value="55">적극적 · 구매 확률 55%</option>
+          <option value="70">보통 · 구매 확률 70%</option>
+          <option value="85">신중 · 구매 확률 85%</option>
+        </select>
+      </div>
+
+      <div class="field hotel-toggle">
+        <label class="check"><input name="hotelEnabled" type="checkbox"> 호텔도 확인</label>
+      </div>
+      <div class="field hotel-opt">
+        <label for="hotelQuery">호텔 검색어</label>
+        <input id="hotelQuery" name="hotelQuery" placeholder="Tokyo hotels">
+      </div>
+      <div class="field hotel-opt">
+        <label for="minRating">호텔 최소 평점</label>
+        <select id="minRating" name="minRating">
+          <option value="0">제한 없음</option>
+          <option value="3.5">3.5 이상</option>
+          <option value="4">4.0 이상</option>
+          <option value="4.5">4.5 이상</option>
+        </select>
+      </div>
+
+      <div class="search-actions">
+        <button type="submit" id="run-btn" class="search-btn">검색</button>
+        <span id="form-msg" class="muted"></span>
+      </div>
+      <p id="minbuy-help" class="help wide" hidden>
+        <b>알림 민감도</b>: 확인할 때마다 Jev가 "지금 사는 게 낫다"고 볼 확률을 0~100%로 냅니다(아래 <i>구매 확률</i>).
+        이 확률이 기준 이상이면 <b>지금 구매 추천</b>으로 바뀝니다. 낮추면 추천이 자주 뜨고, 높이면 확실할 때만 뜹니다. 목표가에 닿으면 기준과 상관없이 추천합니다.
+      </p>
+    </form>
+    <p id="run-status" class="run-status" hidden></p>
+  </section>
+
   <section id="verdict" class="card verdict" aria-live="polite">
     <p class="muted">불러오는 중…</p>
   </section>
@@ -62,61 +140,6 @@
     </div>
     <p class="muted small">숙소 유형 태그는 Jev가 이름·등급·편의시설을 보고 판단한 값입니다. 틀릴 수 있으니 예약 전에 객실 유형을 확인하세요.</p>
     <ul id="hotels" class="hotel-list"></ul>
-  </section>
-
-  <section class="card">
-    <h2>감시 조건 설정</h2>
-    <p class="muted">조건을 바꾸고 <b>이 조건으로 지금 검색</b>을 누르면 바로 검색하고, 이후 3시간마다 그 조건으로 계속 감시합니다.</p>
-    <form id="cfg" class="form">
-      <div class="field combo" data-field="origin">
-        <label for="origin-input">출발 공항</label>
-        <input id="origin-input" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="origin-list" placeholder="도시·국가·공항 코드">
-        <input type="hidden" name="origin">
-        <ul id="origin-list" class="combo-list" role="listbox" hidden></ul>
-      </div>
-      <div class="field combo" data-field="destination">
-        <label for="destination-input">도착 공항</label>
-        <input id="destination-input" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="destination-list" placeholder="예: 일본, 도쿄, NRT">
-        <input type="hidden" name="destination">
-        <ul id="destination-list" class="combo-list" role="listbox" hidden></ul>
-      </div>
-      <label>가는 날<input name="departDate" type="date" required></label>
-      <label>오는 날 <small>(비우면 편도)</small><input name="returnDate" type="date"></label>
-      <label>성인<input name="adults" type="number" min="1" max="9" required></label>
-      <label>목표가 (원, 0=사용 안 함)<input name="targetPrice" type="number" min="0" step="1000" required></label>
-      <label>알림 민감도
-        <select name="minBuy">
-          <option value="55">적극적 · 구매 확률 55% 이상</option>
-          <option value="70">보통 · 구매 확률 70% 이상</option>
-          <option value="85">신중 · 구매 확률 85% 이상</option>
-        </select>
-      </label>
-      <p class="help wide">
-        <b>알림 민감도란?</b> 확인할 때마다 Jev가 "지금 사는 게 낫다"고 볼 확률을 0~100%로 냅니다(대시보드의 <i>구매 확률</i>).
-        이 확률이 고른 기준 이상이면 <b>지금 구매 추천</b>으로 바뀝니다. 기준을 낮추면 추천이 자주 뜨고, 높이면 확실할 때만 뜹니다.
-        목표가에 도달하면 이 기준과 상관없이 추천합니다.
-      </p>
-      <label class="check"><input name="hotelEnabled" type="checkbox"> 호텔도 확인</label>
-      <label>호텔 검색어<input name="hotelQuery" placeholder="Tokyo hotels"></label>
-      <label>호텔 최소 평점 <small>(구글 투숙객 평점)</small>
-        <select name="minRating">
-          <option value="0">제한 없음</option>
-          <option value="3.5">3.5 이상</option>
-          <option value="4">4.0 이상</option>
-          <option value="4.5">4.5 이상</option>
-        </select>
-      </label>
-      <div class="actions wide">
-        <button type="submit" id="run-btn">이 조건으로 지금 검색</button>
-        <button type="button" id="copy-btn" class="button ghost">설정 복사</button>
-        <span id="copied" class="muted"></span>
-      </div>
-      <p class="help wide">
-        누르면 켜져 있는 PC가 몇 초 안에 새 조건을 저장하고 바로 검색합니다(검색 1~2분). 이후 3시간마다 이 조건으로 계속 확인합니다.
-      </p>
-    </form>
-    <p id="run-status" class="run-status" hidden></p>
-    <details class="raw"><summary>설정 JSON 보기</summary><pre id="preview" class="preview"></pre></details>
   </section>
 
   <footer class="muted foot">
