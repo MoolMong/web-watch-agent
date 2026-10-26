@@ -1,0 +1,15 @@
+{
+  "name": "Web Watch Agent",
+  "short_name": "가격 감시",
+  "description": "항공권·호텔 가격을 감시하고 지금 살 때인지 알려 주는 개인 대시보드",
+  "lang": "ko",
+  "start_url": "./flights/",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#ffffff",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

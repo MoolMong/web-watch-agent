@@ -38,9 +38,19 @@ scripts/write-site-config.ps1  docs/config.js 생성 (URL + publishable key)
 
 새 감시 대상은 `watchers/<id>/`를 만들고 `core/agent.ts`의 `WATCHERS`, `docs/<id>/`, `docs/watchers.json`에 추가합니다.
 
+## 기능 요약
+
+- **감시 목록**: 감시마다 조건·자동 확인 주기(1/3/6/12/24시간)·메모. 필터(자동 켜짐/구매 추천/지난 일정), 검색(`/`), 정렬, 일괄 검색·켜기·끄기·삭제
+- **여러 개 한 번에**: 출발지 × 도착지 × 날짜 범위 조합으로 감시 생성(최대 30개, 중복 제외)
+- **가격 추이**: 직전 대비 ▲▼, 지금까지 최저가, 그래프
+- **알림**: 구매 추천으로 바뀜 / 목표가 첫 도달 / 최저가 3% 이상 경신 때만 `watch_events`에 기록 → 대시보드 "최근 알림"(안 읽음 표시), 페이지가 백그라운드일 때 브라우저 알림
+  - 선택: `WWA_TOAST=1` Windows 알림, `NTFY_TOPIC` ntfy.sh 휴대폰 푸시 (둘 다 기본 꺼짐)
+- **PC 상태**: 상단에 "PC 연결됨 / 검색 중 / 꺼짐 · n시간 전". 출발일이 지난 감시는 자동으로 꺼짐
+- **휴대폰**: 홈 화면에 추가하면 앱처럼 열림(manifest + 아이콘)
+
 ## 설정
 
-1. Supabase 프로젝트를 만들고 SQL Editor에서 `supabase/schema.sql`, 이어서 `supabase/migrations/002_watches.sql`을 실행합니다.
+1. Supabase 프로젝트를 만들고 SQL Editor에서 `supabase/schema.sql`, 이어서 `supabase/migrations/`의 002~005를 번호 순서대로 실행합니다.
 2. Authentication에서 본인 계정(이메일+비밀번호)을 추가한 뒤 **Allow new users to sign up**을 끕니다.
 3. 사용자 환경변수를 설정합니다.
    - `SUPABASE_URL`
@@ -50,4 +60,4 @@ scripts/write-site-config.ps1  docs/config.js 생성 (URL + publishable key)
 4. `scripts\write-site-config.ps1`을 실행하고 `docs/config.js`를 커밋합니다.
 5. `scripts\register-task.ps1`을 실행한 뒤 `Start-ScheduledTask -TaskName WebWatchAgent`로 시작합니다.
 
-로그: `core/.tmp/agent.log`
+에이전트 재시작: `scripts\restart-agent.ps1` · 로그: `core/.tmp/agent.log`

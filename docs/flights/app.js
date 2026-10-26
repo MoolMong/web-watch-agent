@@ -160,6 +160,14 @@ function renderBulkBar() {
 }
 
 function setupWatchList() {
+  // "/" jumps to the list search (like many sites), unless you're typing somewhere.
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target.closest("input, textarea, select, [contenteditable]")) return;
+    e.preventDefault();
+    $("list-search").focus();
+    $("list-search").scrollIntoView({ block: "center", behavior: "smooth" });
+  });
   document.querySelector(".seg").addEventListener("click", (e) => {
     const v = e.target.closest("[data-view]")?.dataset.view;
     if (!v) return;

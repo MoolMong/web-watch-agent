@@ -4,7 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Web Watch Agent</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👀</text></svg>">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121214" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="가격 감시">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="style.css">
@@ -51,9 +57,16 @@
         const rows = data || [];
         const alerts = rows.filter((r) => r.last_summary?.alert).length;
         const last = rows.map((r) => r.last_checked_at).filter(Boolean).sort().at(-1);
-        line = rows.length
+        let unread = 0;
+        try {
+          const seen = JSON.parse(localStorage.getItem("alerts-seen-at") || "null");
+          let q = sb.from("watch_events").select("id").limit(100);
+          if (seen) q = q.gt("created_at", seen);
+          unread = ((await q).data || []).length;
+        } catch {}
+        line = (unread ? `🔔 안 읽은 알림 ${unread}개 · ` : "") + (rows.length
           ? `감시 ${rows.length}개${alerts ? ` · 🟢 구매 추천 ${alerts}개` : ""}${last ? ` · 마지막 확인 ${new Date(last).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}`
-          : "아직 감시 없음";
+          : "아직 감시 없음");
       }
       const tag = w.status === "active" ? "a" : "div";
       return `<${tag} class="card hub-item ${w.status}" ${w.status === "active" ? `href="${w.id}/"` : ""}>

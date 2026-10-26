@@ -4,7 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Flights · Web Watch Agent</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121214" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="가격 감시">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="../style.css">
@@ -172,7 +178,7 @@
         <button type="button" class="seg-btn" data-view="past">지난 일정 <span data-n="past"></span></button>
       </div>
       <div class="list-tools-right">
-        <input type="search" id="list-search" placeholder="도시·공항·메모 검색" aria-label="감시 검색">
+        <input type="search" id="list-search" placeholder="도시·공항·메모 검색  ( / )" aria-label="감시 검색">
         <select id="list-sort" aria-label="정렬">
           <option value="created">추가순</option>
           <option value="depart">출발일순</option>
