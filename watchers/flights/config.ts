@@ -7,6 +7,7 @@ export type FlightsConfig = {
   };
   hotel: { enabled: boolean; query: string; checkIn: string; checkOut: string; minRating: number };
   alert: { minBuyProbability: number };
+  intervalHours: number;
 };
 
 export const defaultConfig: FlightsConfig = {
@@ -16,6 +17,7 @@ export const defaultConfig: FlightsConfig = {
   },
   hotel: { enabled: true, query: "Tokyo hotels", checkIn: "2026-12-10", checkOut: "2026-12-14", minRating: 4 },
   alert: { minBuyProbability: 0.7 },
+  intervalHours: 3,
 };
 
 const date = /^\d{4}-\d{2}-\d{2}$/;
@@ -41,10 +43,13 @@ export function validateConfig(raw: any): FlightsConfig {
   if (![0, 3.5, 4, 4.5].includes(minRating)) fail("호텔 최소 평점은 0, 3.5, 4, 4.5 중 하나여야 합니다.");
   const minBuyProbability = Number(a.minBuyProbability ?? 0.7);
   if (!(minBuyProbability >= 0.05 && minBuyProbability <= 1)) fail("알림 민감도가 잘못됐습니다.");
+  const intervalHours = Number(raw.intervalHours ?? 3);
+  if (![1, 3, 6, 12, 24].includes(intervalHours)) fail("확인 주기는 1, 3, 6, 12, 24시간 중 하나여야 합니다.");
 
   return {
     flight: { origin, destination, departDate: f.departDate, returnDate, adults, currency: "KRW", targetPrice },
     hotel: { enabled: Boolean(h.enabled), query: String(h.query ?? "").slice(0, 100), checkIn: f.departDate, checkOut: returnDate, minRating },
     alert: { minBuyProbability },
+    intervalHours,
   };
 }

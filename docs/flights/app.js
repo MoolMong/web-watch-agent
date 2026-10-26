@@ -38,6 +38,8 @@ const state = {
   multi: { origin: [], destination: [], dates: [] }, // bulk-mode selections
 };
 
+// Order-independent identity of the flight conditions (Postgres jsonb reorders keys).
+const flightKey = (f) => ["origin", "destination", "departDate", "returnDate", "adults", "targetPrice"].map((k) => String(f?.[k] ?? "")).join("|");
 const watchTitle = (c) => `${cityOf(c.flight.origin)} → ${cityOf(c.flight.destination)}`;
 const watchDates = (c) => rangeLabel(c.flight.departDate, c.flight.returnDate);
 function watchSub(c) {
@@ -79,6 +81,17 @@ function matchesSearch(w, q) {
     window.COUNTRIES[AIRPORT_BY_CODE[f.destination]?.[4]]?.[0]].join(" ").toLowerCase();
   return q.toLowerCase().split(/\s+/).every((t) => hay.includes(t));
 }
+// "다음 14:30" style hint for the list; nothing when the watch won't run automatically.
+function nextLabel(w) {
+  if (!w.enabled || isPast(w)) return "자동 꺼짐";
+  const every = { 1: "1시간", 3: "3시간", 6: "6시간", 12: "12시간", 24: "하루" }[w.config.intervalHours || 3];
+  if (!w.next_check_at || Date.parse(w.next_check_at) <= Date.now()) return `곧 확인 · ${every}마다`;
+  const d = new Date(w.next_check_at);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  const t = d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+  return `다음 ${sameDay ? t : `${d.getMonth() + 1}/${d.getDate()} ${t}`} · ${every}마다`;
+}
+
 const visibleWatches = () => state.watches.filter(VIEWS[listView.view] || VIEWS.all).filter((w) => matchesSearch(w, listView.q)).sort(SORTS[listView.sort] || SORTS.created);
 
 // =====================================================================
@@ -123,7 +136,7 @@ function renderWatchList() {
       </td>
       <td class="num price-cell">${s ? `<b>${won(s.minPrice)}</b>${trend}${lowest}` : "-"}</td>
       <td>${verdict}${fresh}</td>
-      <td class="muted">${w.last_checked_at ? when(w.last_checked_at) : "-"}</td>
+      <td class="muted check-cell">${w.last_checked_at ? when(w.last_checked_at) : "-"}<span class="next">${nextLabel(w)}</span></td>
       <td class="col-on"><label class="switch mini"><input type="checkbox" data-toggle="${w.id}" ${w.enabled ? "checked" : ""} aria-label="자동 확인"><span class="track"></span></label></td>
       <td class="col-actions">
         <a class="icon-btn" href="${esc(flightsUrl(c))}" target="_blank" rel="noopener" title="구글 항공권에서 열기" aria-label="구글 항공권에서 열기">↗</a>
@@ -195,7 +208,7 @@ function setupWatchList() {
 const findWatch = (id) => state.watches.find((w) => w.id === id);
 
 async function setEnabled(ids, enabled) {
-  const { error } = await sb.from("watches").update({ enabled, updated_at: new Date().toISOString() }).in("id", ids);
+  const { error } = await sb.from("watches").update({ enabled, updated_at: new Date().toISOString(), ...(enabled ? { next_check_at: null } : {}) }).in("id", ids);
   if (error) return showStatus("error", `변경하지 못했습니다: ${esc(error.message)}`);
   await loadWatches();
 }
@@ -293,7 +306,7 @@ async function showDetail() {
   renderChart(points, latest.config.flight.targetPrice);
   renderRows(points);
   renderHotels(latest);
-  if (JSON.stringify(w.config.flight) !== JSON.stringify(latest.config.flight)) {
+  if (flightKey(w.config.flight) !== flightKey(latest.config.flight)) {
     $("insight").textContent = "조건이 바뀌었습니다. 다음 확인부터 새 조건으로 기록됩니다.";
   }
 }
@@ -649,6 +662,7 @@ function fillForm(cfg) {
   f.hotelEnabled.checked = !!h.enabled; f.hotelQuery.value = h.query || "";
   setSelect(f.minRating, Number(h.minRating) || 0);
   f.memo.value = cfg.memo || "";
+  setSelect(f.intervalHours, cfg.intervalHours || 3);
   syncHotelFields();
   updateDateButton();
 }
@@ -661,6 +675,7 @@ function sharedConfig() {
     hotel: { enabled: f.hotelEnabled.checked, query: f.hotelQuery.value.trim(), minRating: Number(f.minRating.value) },
     alert: { minBuyProbability: Number(f.minBuy.value) / 100 },
     memo: f.memo.value.trim().slice(0, 40),
+    intervalHours: Number(f.intervalHours.value),
   };
 }
 
@@ -669,6 +684,7 @@ function makeConfig(origin, destination, depart, ret, shared) {
     flight: { origin, destination, departDate: depart, returnDate: ret || "", adults: shared.adults, currency: "KRW", targetPrice: shared.targetPrice },
     hotel: { ...shared.hotel, checkIn: depart, checkOut: ret || "" },
     alert: shared.alert,
+    intervalHours: shared.intervalHours,
     ...(shared.memo ? { memo: shared.memo } : {}),
   };
 }
@@ -775,13 +791,13 @@ async function saveEditor(runAfter) {
   const stamp = new Date().toISOString();
   let ids, skipped = 0;
   if (state.editingId != null && !state.bulk) {
-    const { error } = await sb.from("watches").update({ config: configs[0], updated_at: stamp, last_error: null }).eq("id", state.editingId);
+    const { error } = await sb.from("watches").update({ config: configs[0], updated_at: stamp, last_error: null, next_check_at: null }).eq("id", state.editingId);
     if (error) { msg.textContent = `저장하지 못했습니다: ${error.message}`; return; }
     ids = [state.editingId];
   } else {
     // Skip combinations that already exist as a watch with the same flight conditions.
-    const existing = new Set(state.watches.map((w) => JSON.stringify(w.config.flight)));
-    const fresh = configs.filter((c) => !existing.has(JSON.stringify(c.flight)));
+    const existing = new Set(state.watches.map((w) => flightKey(w.config.flight)));
+    const fresh = configs.filter((c) => !existing.has(flightKey(c.flight)));
     skipped = configs.length - fresh.length;
     if (!fresh.length) { msg.textContent = "이미 같은 조건의 감시가 있습니다. 목록에서 ↻ 로 검색하세요."; return; }
     const { data, error } = await sb.from("watches").insert(fresh.map((config) => ({ watcher: WATCHER, config }))).select("id");

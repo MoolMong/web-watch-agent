@@ -36,6 +36,14 @@ function scrape(id: WatcherId): Promise<void> {
   });
 }
 
+// Hours between scheduled checks: the watch's own setting, else the watcher's default.
+const ALLOWED_INTERVALS = [1, 3, 6, 12, 24];
+function intervalOf(watch: Watch) {
+  const h = Number((watch.config as any)?.intervalHours);
+  return ALLOWED_INTERVALS.includes(h) ? h : WATCHERS[watch.watcher as WatcherId]?.intervalHours ?? 3;
+}
+const nextCheck = (watch: Watch, from = Date.now()) => new Date(from + intervalOf(watch) * 3_600_000).toISOString();
+
 async function runWatch(watch: Watch, requestId: number | null = null) {
   if (!(watch.watcher in WATCHERS)) throw new Error(`알 수 없는 감시 대상: ${watch.watcher}`);
   const id = watch.watcher as WatcherId;
@@ -59,7 +67,7 @@ async function runWatch(watch: Watch, requestId: number | null = null) {
     // Trend for the list: previous summary (same conditions only) and the lowest fare seen so far.
     const prices = [...prior.map((c) => c.summary?.minPrice), summary.minPrice].filter((p): p is number => typeof p === "number");
     await db.update("watches", `id=eq.${watch.id}`, {
-      last_checked_at: scraped.checkedAt, last_summary: summary, last_error: null,
+      last_checked_at: scraped.checkedAt, last_summary: summary, last_error: null, next_check_at: nextCheck(watch),
       prev_summary: prior.at(-1)?.summary ?? null,
       lowest_price: prices.length ? Math.min(...prices) : null,
     });
@@ -79,7 +87,7 @@ async function runWatch(watch: Watch, requestId: number | null = null) {
   } catch (e) {
     // Record the failure on the watch so the list shows it, and don't retry it for a full interval.
     const message = (e as Error).message.slice(0, 500);
-    await db.update("watches", `id=eq.${watch.id}`, { last_checked_at: now(), last_error: message }).catch(() => {});
+    await db.update("watches", `id=eq.${watch.id}`, { last_checked_at: now(), last_error: message, next_check_at: nextCheck(watch) }).catch(() => {});
     throw e;
   } finally {
     await heartbeat(null, true);
@@ -141,9 +149,8 @@ async function handleRequests() {
 // Runs at most one due watch per call so dashboard requests are never stuck behind a long queue.
 async function runOneDueWatch() {
   for (const [id, w] of Object.entries(WATCHERS) as [WatcherId, (typeof WATCHERS)[WatcherId]][]) {
-    const cutoff = new Date(Date.now() - w.intervalHours * 3_600_000).toISOString();
     const [due] = await db.select<Watch>("watches",
-      `watcher=eq.${id}&enabled=eq.true${w.expiresOn ? `&config->${w.expiresOn}=gte.${localToday()}` : ""}&or=(last_checked_at.is.null,last_checked_at.lt."${cutoff}")&order=last_checked_at.asc.nullsfirst&limit=1`);
+      `watcher=eq.${id}&enabled=eq.true${w.expiresOn ? `&config->${w.expiresOn}=gte.${localToday()}` : ""}&or=(next_check_at.is.null,next_check_at.lte."${now()}")&order=next_check_at.asc.nullsfirst&limit=1`);
     if (!due) continue;
     try { await runWatch(due); } catch (e) { await log(`watch #${due.id}: scheduled check failed: ${(e as Error).message}`); }
     return true;
