@@ -63,16 +63,24 @@ function renderWatchList() {
   $("watch-count").textContent = rows.length ? rows.length : "";
   $("watch-rows").innerHTML = rows.map((w) => {
     const c = w.config, s = w.last_summary;
-    const verdict = w.last_error ? `<span class="tag error" title="${esc(w.last_error)}">오류</span>`
+    const past = c.flight.departDate < iso(new Date());
+    const verdict = past ? `<span class="tag wait" title="${esc(w.last_error || "출발일이 지났습니다")}">지난 일정</span>`
+      : w.last_error ? `<span class="tag error" title="${esc(w.last_error)}">오류</span>`
       : !s ? `<span class="tag wait">대기 중</span>`
       : `<span class="tag ${s.alert ? "buy" : "wait"}">${s.alert ? "구매 추천" : "기다리기"}</span>`;
+    // Change since the previous check and the lowest fare seen for these conditions.
+    const diff = s && w.prev_summary?.minPrice != null ? s.minPrice - w.prev_summary.minPrice : null;
+    const trend = diff == null || diff === 0 ? ""
+      : `<span class="trend ${diff < 0 ? "down" : "up"}" title="직전 확인 대비">${diff < 0 ? "▼" : "▲"} ${won(Math.abs(diff))}</span>`;
+    const lowest = w.lowest_price != null && s && w.lowest_price < s.minPrice ? `<span class="lowest">최저 ${won(w.lowest_price)}</span>`
+      : w.lowest_price != null && s && w.prev_summary ? `<span class="lowest best">지금이 최저</span>` : "";
     return `<tr class="${w.id === state.selectedId ? "selected" : ""} ${w.enabled ? "" : "off"}" data-id="${w.id}">
       <td class="col-check"><input type="checkbox" data-check="${w.id}" ${state.checked.has(w.id) ? "checked" : ""} aria-label="선택"></td>
       <td class="watch-cell">
         <button type="button" class="watch-name" data-open="${w.id}">${esc(watchTitle(c))} <span class="watch-dates">${esc(watchDates(c))}</span></button>
         <span class="watch-sub">${esc(watchSub(c))}</span>
       </td>
-      <td class="num">${s ? won(s.minPrice) : "-"}</td>
+      <td class="num price-cell">${s ? `<b>${won(s.minPrice)}</b>${trend}${lowest}` : "-"}</td>
       <td>${verdict}</td>
       <td class="muted">${w.last_checked_at ? when(w.last_checked_at) : "-"}</td>
       <td class="col-on"><label class="switch mini"><input type="checkbox" data-toggle="${w.id}" ${w.enabled ? "checked" : ""} aria-label="자동 확인"><span class="track"></span></label></td>
@@ -177,8 +185,11 @@ function trackRequests(reqs) {
       await showDetail();
       return;
     }
+    const offline = window.wwa.agent.row && !window.wwa.agent.online;
     const slow = pending === total && Date.now() - started > 60_000;
-    showStatus("pending", slow
+    showStatus("pending", offline && pending === total
+      ? `⏸ PC가 꺼져 있어 요청이 대기 중입니다. PC를 켜고 로그인하면 자동으로 이어서 검색합니다.`
+      : slow
       ? `⏳ 1분 넘게 대기 중입니다. PC가 켜져 있고 에이전트가 실행 중인지 확인하세요.`
       : `🔎 ${total > 1 ? `${total}개 중 ${done + failed}개 완료 · ` : ""}${running ? "검색 중" : "PC에 보냄"}… 하나에 30초 안팎 걸립니다.`);
     if (done) await loadWatches();
@@ -777,6 +788,7 @@ function subscribeLive() {
   sb = window.wwa.sb;
   $("logout").hidden = false;
   $("logout").addEventListener("click", window.wwa.logout);
+  window.wwa.watchAgent();
   setupEditor();
   setupWatchList();
   setupHotelFilters();

@@ -525,3 +525,26 @@ tbody tr:hover td { background: var(--surface); }
 /* Bulk mode hides the swap button, so the route is just two columns. */
 #editor.bulk .route { grid-template-columns: 1fr 1fr; }
 @media (max-width: 480px) { #editor.bulk .route { grid-template-columns: 1fr; } }
+
+/* ---------- loop 1: agent status, price trend ---------- */
+.agent-pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 9999px;
+  font-size: 12.5px; font-weight: 600; white-space: nowrap; background: var(--surface); color: var(--slate);
+}
+.agent-pill::before { content: ""; width: 8px; height: 8px; border-radius: 9999px; background: var(--stone); }
+.agent-pill.on { background: var(--teal-tint); color: var(--ink); }
+.agent-pill.on::before { background: var(--success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 25%, transparent); }
+.agent-pill.off { background: var(--coral-tint); color: var(--ink); }
+.agent-pill.off::before { background: var(--danger); }
+.price-cell b { font-weight: 600; color: var(--ink); }
+.trend { display: block; font-size: 12px; font-weight: 600; }
+.trend.down { color: var(--success); }
+.trend.up { color: var(--danger); }
+.lowest { display: block; font-size: 11.5px; color: var(--steel); }
+.lowest.best { color: var(--success); font-weight: 600; }
+@media (max-width: 600px) {
+  .price-cell .trend, .price-cell .lowest { display: inline; margin-left: 6px; }
+}
+@media (max-width: 480px) {
+  .agent-pill { padding: 0 8px; font-size: 11.5px; }
+}

@@ -46,6 +46,7 @@ async function runWatch(watch: Watch, requestId: number | null = null) {
     await mkdir(tmp, { recursive: true });
     await writeFile(new URL("config.json", tmp), JSON.stringify(config, null, 2), "utf8");
 
+    await heartbeat(watch.id, true);
     await scrape(id);
     const scraped = JSON.parse(await readFile(new URL("scrape.json", tmp), "utf8"));
     const prior = await db.select<Check>("watch_checks",
@@ -54,7 +55,13 @@ async function runWatch(watch: Watch, requestId: number | null = null) {
     await db.insert("watch_checks", {
       watcher: id, watch_id: watch.id, checked_at: scraped.checkedAt, config_key: key, summary, snapshot, request_id: requestId,
     });
-    await db.update("watches", `id=eq.${watch.id}`, { last_checked_at: scraped.checkedAt, last_summary: summary, last_error: null });
+    // Trend for the list: previous summary (same conditions only) and the lowest fare seen so far.
+    const prices = [...prior.map((c) => c.summary?.minPrice), summary.minPrice].filter((p): p is number => typeof p === "number");
+    await db.update("watches", `id=eq.${watch.id}`, {
+      last_checked_at: scraped.checkedAt, last_summary: summary, last_error: null,
+      prev_summary: prior.at(-1)?.summary ?? null,
+      lowest_price: prices.length ? Math.min(...prices) : null,
+    });
     await log(`watch #${watch.id}: ${line}`);
     return line;
   } catch (e) {
@@ -62,7 +69,37 @@ async function runWatch(watch: Watch, requestId: number | null = null) {
     const message = (e as Error).message.slice(0, 500);
     await db.update("watches", `id=eq.${watch.id}`, { last_checked_at: now(), last_error: message }).catch(() => {});
     throw e;
+  } finally {
+    await heartbeat(null, true);
   }
+}
+
+// ---- heartbeat: lets the dashboard show whether this PC is online and what it is doing ----
+const startedAt = now();
+let lastBeat = 0;
+async function heartbeat(busyWatchId: number | null, force = false) {
+  if (!force && Date.now() - lastBeat < 20_000) return;
+  lastBeat = Date.now();
+  const pending = await db.select<{ id: number }>("watch_requests", "status=eq.pending&select=id&limit=100").catch(() => []);
+  await db.upsert("agent_status", { id: "pc", last_seen: now(), started_at: startedAt, busy_watch_id: busyWatchId, queue: pending.length })
+    .catch((e) => log(`heartbeat failed: ${(e as Error).message}`));
+}
+
+// ---- turn off watches whose departure date has passed (local date of this PC) ----
+function localToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+let lastExpireCheck = 0;
+async function expireOldWatches() {
+  if (Date.now() - lastExpireCheck < 10 * 60_000) return;
+  lastExpireCheck = Date.now();
+  const fields = Object.entries(WATCHERS).filter(([, w]) => w.expiresOn);
+  const old = (await Promise.all(fields.map(([id, w]) =>
+    db.select<Watch>("watches", `watcher=eq.${id}&enabled=eq.true&config->${w.expiresOn}=lt.${localToday()}&select=id`)))).flat();
+  if (!old.length) return;
+  await db.update("watches", `id=in.(${old.map((w) => w.id).join(",")})`, { enabled: false, last_error: "출발일이 지나 자동으로 껐습니다." });
+  await log(`turned off ${old.length} past watch(es): ${old.map((w) => w.id).join(", ")}`);
 }
 
 async function handleRequests() {
@@ -94,7 +131,7 @@ async function runOneDueWatch() {
   for (const [id, w] of Object.entries(WATCHERS) as [WatcherId, (typeof WATCHERS)[WatcherId]][]) {
     const cutoff = new Date(Date.now() - w.intervalHours * 3_600_000).toISOString();
     const [due] = await db.select<Watch>("watches",
-      `watcher=eq.${id}&enabled=eq.true&or=(last_checked_at.is.null,last_checked_at.lt."${cutoff}")&order=last_checked_at.asc.nullsfirst&limit=1`);
+      `watcher=eq.${id}&enabled=eq.true${w.expiresOn ? `&config->${w.expiresOn}=gte.${localToday()}` : ""}&or=(last_checked_at.is.null,last_checked_at.lt."${cutoff}")&order=last_checked_at.asc.nullsfirst&limit=1`);
     if (!due) continue;
     try { await runWatch(due); } catch (e) { await log(`watch #${due.id}: scheduled check failed: ${(e as Error).message}`); }
     return true;
@@ -104,14 +141,29 @@ async function runOneDueWatch() {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Only one agent may run: two would share one ego task space and break each other's scrapes.
+async function acquireLock() {
+  const lock = new URL("./.tmp/agent.lock", import.meta.url);
+  await mkdir(new URL("./.tmp/", import.meta.url), { recursive: true });
+  try {
+    const pid = Number(await readFile(lock, "utf8"));
+    if (pid && pid !== process.pid) { process.kill(pid, 0); return false; } // throws if that process is gone
+  } catch {}
+  await writeFile(lock, String(process.pid), "utf8");
+  return true;
+}
+
 if (process.argv[2] === "--once") {
   const [watch] = await db.select<Watch>("watches", `id=eq.${Number(process.argv[3])}`);
   if (!watch) throw new Error(`watch ${process.argv[3]} not found`);
   console.log(await runWatch(watch));
 } else {
+  if (!(await acquireLock())) { console.log("another agent is already running; exiting"); process.exit(0); }
   await log(`agent started (${Object.keys(WATCHERS).join(", ")})`);
   for (;;) {
     try {
+      await heartbeat(null);
+      await expireOldWatches();
       if (!(await handleRequests())) await runOneDueWatch();
     } catch (e) {
       await log(`loop error: ${(e as Error).message}`);

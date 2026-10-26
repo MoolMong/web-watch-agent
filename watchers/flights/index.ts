@@ -5,6 +5,8 @@ import { judge, configKey } from "./judge.ts";
 export default {
   id: "flights",
   intervalHours: 3,
+  // config path (PostgREST JSON syntax) of a date after which the watch is pointless
+  expiresOn: "flight->>departDate",
   defaultConfig,
   validateConfig,
   configKey,

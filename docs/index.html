@@ -16,6 +16,7 @@
     <div class="nav-links">
       <a class="nav-link" href="./" aria-current="page">전체</a>
       <a class="nav-link" href="./flights/">항공권·호텔</a>
+      <span id="agent-pill" class="agent-pill" hidden></span>
       <button type="button" id="logout" class="linkish" hidden>로그아웃</button>
     </div>
   </div>
@@ -40,6 +41,7 @@
   const sb = window.wwa.sb;
   document.getElementById("logout").hidden = false;
   document.getElementById("logout").addEventListener("click", window.wwa.logout);
+  window.wwa.watchAgent();
   try {
     const watchers = await (await fetch("watchers.json?t=" + Date.now())).json();
     const cards = await Promise.all(watchers.map(async (w) => {
