@@ -47,6 +47,40 @@ function watchSub(c) {
   return parts.join(" · ");
 }
 
+// Opens the same Google Flights search the agent runs.
+function flightsUrl(c) {
+  const f = c.flight;
+  const adults = Number(f.adults) > 1 ? ` for ${f.adults} adults` : "";
+  const q = f.returnDate
+    ? `Flights to ${f.destination} from ${f.origin} on ${f.departDate} through ${f.returnDate}${adults}`
+    : `One way flights to ${f.destination} from ${f.origin} on ${f.departDate}${adults}`;
+  return `https://www.google.com/travel/flights?q=${encodeURIComponent(q)}&curr=KRW&hl=ko`;
+}
+
+// List view: which rows are shown and in what order (remembered per browser).
+const listView = { view: store.get("list-view", "all"), q: "", sort: store.get("list-sort", "created") };
+const isPast = (w) => w.config.flight.departDate < iso(new Date());
+const VIEWS = {
+  all: () => true,
+  on: (w) => w.enabled && !isPast(w),
+  buy: (w) => !!w.last_summary?.alert && !isPast(w),
+  past: isPast,
+};
+const SORTS = {
+  created: (a, b) => a.id - b.id,
+  depart: (a, b) => a.config.flight.departDate.localeCompare(b.config.flight.departDate),
+  price: (a, b) => (a.last_summary?.minPrice ?? Infinity) - (b.last_summary?.minPrice ?? Infinity),
+  buy: (a, b) => (b.last_summary?.alert ? 1 : 0) - (a.last_summary?.alert ? 1 : 0) || (b.last_summary?.buyProbability ?? 0) - (a.last_summary?.buyProbability ?? 0),
+};
+function matchesSearch(w, q) {
+  if (!q) return true;
+  const f = w.config.flight;
+  const hay = [f.origin, f.destination, cityOf(f.origin), cityOf(f.destination), AIRPORT_BY_CODE[f.destination]?.[3], w.config.memo,
+    window.COUNTRIES[AIRPORT_BY_CODE[f.destination]?.[4]]?.[0]].join(" ").toLowerCase();
+  return q.toLowerCase().split(/\s+/).every((t) => hay.includes(t));
+}
+const visibleWatches = () => state.watches.filter(VIEWS[listView.view] || VIEWS.all).filter((w) => matchesSearch(w, listView.q)).sort(SORTS[listView.sort] || SORTS.created);
+
 // =====================================================================
 // Watch list
 // =====================================================================
@@ -59,8 +93,14 @@ async function loadWatches() {
 }
 
 function renderWatchList() {
-  const rows = state.watches;
-  $("watch-count").textContent = rows.length ? rows.length : "";
+  const rows = visibleWatches();
+  $("watch-count").textContent = state.watches.length ? state.watches.length : "";
+  for (const [k, fn] of Object.entries(VIEWS)) {
+    const n = state.watches.filter(fn).length;
+    const el = document.querySelector(`[data-n="${k}"]`);
+    if (el) el.textContent = n || "";
+  }
+  document.querySelectorAll(".seg-btn").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === listView.view)));
   $("watch-rows").innerHTML = rows.map((w) => {
     const c = w.config, s = w.last_summary;
     const past = c.flight.departDate < iso(new Date());
@@ -78,7 +118,7 @@ function renderWatchList() {
     return `<tr class="${w.id === state.selectedId ? "selected" : ""} ${w.enabled ? "" : "off"}" data-id="${w.id}">
       <td class="col-check"><input type="checkbox" data-check="${w.id}" ${state.checked.has(w.id) ? "checked" : ""} aria-label="선택"></td>
       <td class="watch-cell">
-        <button type="button" class="watch-name" data-open="${w.id}">${esc(watchTitle(c))} <span class="watch-dates">${esc(watchDates(c))}</span></button>
+        <button type="button" class="watch-name" data-open="${w.id}">${c.memo ? `<span class="memo">${esc(c.memo)}</span>` : ""}${esc(watchTitle(c))} <span class="watch-dates">${esc(watchDates(c))}</span></button>
         <span class="watch-sub">${esc(watchSub(c))}</span>
       </td>
       <td class="num price-cell">${s ? `<b>${won(s.minPrice)}</b>${trend}${lowest}` : "-"}</td>
@@ -86,13 +126,17 @@ function renderWatchList() {
       <td class="muted">${w.last_checked_at ? when(w.last_checked_at) : "-"}</td>
       <td class="col-on"><label class="switch mini"><input type="checkbox" data-toggle="${w.id}" ${w.enabled ? "checked" : ""} aria-label="자동 확인"><span class="track"></span></label></td>
       <td class="col-actions">
+        <a class="icon-btn" href="${esc(flightsUrl(c))}" target="_blank" rel="noopener" title="구글 항공권에서 열기" aria-label="구글 항공권에서 열기">↗</a>
         <button type="button" class="icon-btn" data-run="${w.id}" title="지금 검색" aria-label="지금 검색">↻</button>
         <button type="button" class="icon-btn" data-edit="${w.id}" title="편집" aria-label="편집">✎</button>
         <button type="button" class="icon-btn" data-copy="${w.id}" title="복제" aria-label="복제">⧉</button>
       </td>
     </tr>`;
-  }).join("") || `<tr><td colspan="7" class="empty-row">아직 감시가 없습니다. 위에서 조건을 정하고 <b>추가하고 검색</b>을 누르세요.</td></tr>`;
+  }).join("") || (state.watches.length
+    ? `<tr><td colspan="7" class="empty-row">조건에 맞는 감시가 없습니다. <button type="button" class="linkish" id="clear-filter">필터 지우기</button></td></tr>`
+    : `<tr><td colspan="7" class="empty-row">아직 감시가 없습니다. 위에서 조건을 정하고 <b>추가하고 검색</b>을 누르세요.</td></tr>`);
   $("check-all").checked = rows.length > 0 && rows.every((w) => state.checked.has(w.id));
+  $("clear-filter")?.addEventListener("click", () => { listView.view = "all"; listView.q = ""; $("list-search").value = ""; store.set("list-view", "all"); renderWatchList(); });
   renderBulkBar();
 }
 
@@ -103,6 +147,14 @@ function renderBulkBar() {
 }
 
 function setupWatchList() {
+  document.querySelector(".seg").addEventListener("click", (e) => {
+    const v = e.target.closest("[data-view]")?.dataset.view;
+    if (!v) return;
+    listView.view = v; store.set("list-view", v); renderWatchList();
+  });
+  $("list-search").addEventListener("input", (e) => { listView.q = e.target.value.trim(); renderWatchList(); });
+  $("list-sort").value = listView.sort;
+  $("list-sort").addEventListener("change", (e) => { listView.sort = e.target.value; store.set("list-sort", e.target.value); renderWatchList(); });
   $("watch-rows").addEventListener("click", async (e) => {
     const t = e.target;
     const id = (attr) => Number(t.closest(`[${attr}]`)?.getAttribute(attr));
@@ -116,7 +168,8 @@ function setupWatchList() {
     if (t.closest("[data-open]")) selectWatch(id("data-open"));
   });
   $("check-all").addEventListener("change", (e) => {
-    state.checked = e.target.checked ? new Set(state.watches.map((w) => w.id)) : new Set();
+    const ids = visibleWatches().map((w) => w.id);
+    if (e.target.checked) ids.forEach((id) => state.checked.add(id)); else ids.forEach((id) => state.checked.delete(id));
     renderWatchList();
   });
   $("bulk-bar").addEventListener("click", async (e) => {
@@ -595,6 +648,7 @@ function fillForm(cfg) {
   setSelect(f.minBuy, Math.round((cfg.alert?.minBuyProbability ?? 0.7) * 100));
   f.hotelEnabled.checked = !!h.enabled; f.hotelQuery.value = h.query || "";
   setSelect(f.minRating, Number(h.minRating) || 0);
+  f.memo.value = cfg.memo || "";
   syncHotelFields();
   updateDateButton();
 }
@@ -606,6 +660,7 @@ function sharedConfig() {
     adults: Number(f.adults.value), targetPrice: Number(f.targetPrice.value),
     hotel: { enabled: f.hotelEnabled.checked, query: f.hotelQuery.value.trim(), minRating: Number(f.minRating.value) },
     alert: { minBuyProbability: Number(f.minBuy.value) / 100 },
+    memo: f.memo.value.trim().slice(0, 40),
   };
 }
 
@@ -614,6 +669,7 @@ function makeConfig(origin, destination, depart, ret, shared) {
     flight: { origin, destination, departDate: depart, returnDate: ret || "", adults: shared.adults, currency: "KRW", targetPrice: shared.targetPrice },
     hotel: { ...shared.hotel, checkIn: depart, checkOut: ret || "" },
     alert: shared.alert,
+    ...(shared.memo ? { memo: shared.memo } : {}),
   };
 }
 

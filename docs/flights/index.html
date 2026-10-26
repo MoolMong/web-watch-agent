@@ -117,6 +117,10 @@
 
       <div id="bulk-preview" class="bulk-preview" hidden></div>
 
+      <div class="field memo-field">
+        <label for="memo">메모 <small>(선택)</small></label>
+        <input id="memo" name="memo" maxlength="40" placeholder="예: 가족여행, 출장 후보">
+      </div>
       <div class="search-actions">
         <span id="form-msg" class="muted"></span>
         <button type="button" id="save-only" class="button ghost">검색 없이 저장</button>
@@ -148,6 +152,23 @@
         <button type="button" class="button ghost small-btn" data-bulk="on">켜기</button>
         <button type="button" class="button ghost small-btn" data-bulk="off">끄기</button>
         <button type="button" class="button ghost small-btn danger" data-bulk="delete">삭제</button>
+      </div>
+    </div>
+    <div class="list-tools">
+      <div class="seg" role="tablist" aria-label="보기">
+        <button type="button" class="seg-btn" data-view="all">전체 <span data-n="all"></span></button>
+        <button type="button" class="seg-btn" data-view="on">자동 켜짐 <span data-n="on"></span></button>
+        <button type="button" class="seg-btn" data-view="buy">구매 추천 <span data-n="buy"></span></button>
+        <button type="button" class="seg-btn" data-view="past">지난 일정 <span data-n="past"></span></button>
+      </div>
+      <div class="list-tools-right">
+        <input type="search" id="list-search" placeholder="도시·공항·메모 검색" aria-label="감시 검색">
+        <select id="list-sort" aria-label="정렬">
+          <option value="created">추가순</option>
+          <option value="depart">출발일순</option>
+          <option value="price">최저가순</option>
+          <option value="buy">추천 먼저</option>
+        </select>
       </div>
     </div>
     <div class="table-wrap">
