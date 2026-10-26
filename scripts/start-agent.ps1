@@ -11,6 +11,10 @@ foreach ($name in "OPENROUTER_API_KEY", "SUPABASE_URL", "SUPABASE_SECRET_KEY") {
   }
   if (-not (Get-Item "env:$name" -ErrorAction SilentlyContinue).Value) { throw "$name is not set (user environment variable)" }
 }
+# Optional: phone push through ntfy.sh (see core/notify.ts).
+if (-not $env:NTFY_TOPIC) { $env:NTFY_TOPIC = [Environment]::GetEnvironmentVariable("NTFY_TOPIC", "User") }
+# Optional: Windows notifications on this PC (off unless the user variable WWA_TOAST is 1).
+if (-not $env:WWA_TOAST) { $env:WWA_TOAST = [Environment]::GetEnvironmentVariable("WWA_TOAST", "User") }
 Set-Location $root
 if ($Once) { node core/agent.ts --once $Watcher } else { node core/agent.ts }
 exit $LASTEXITCODE

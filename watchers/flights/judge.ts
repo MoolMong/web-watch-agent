@@ -97,3 +97,28 @@ export async function judge(config: FlightsConfig, scrape: any, history: Summary
   const line = `${state.route} 최저 ${won(f.minPrice)} / 저렴 ${(isCheap * 100).toFixed(0)}% / 구매 ${(buyProbability * 100).toFixed(0)}%${alert ? " → 구매 추천" : ""}`;
   return { summary, snapshot, line };
 }
+
+// Events worth a notification, comparing this check with the watch's previous state.
+// Only state changes count, so a watch that stays "buy" doesn't notify every 3 hours.
+export function events(
+  config: FlightsConfig,
+  summary: Summary,
+  before: { last_summary: Summary | null; lowest_price: number | null; hadHistory: boolean },
+) {
+  const f = config.flight;
+  const route = `${f.origin}→${f.destination} ${f.departDate.slice(5).replace("-", "/")}${f.returnDate ? "~" + f.returnDate.slice(5).replace("-", "/") : ""}`;
+  const won = (n: number) => `₩${n.toLocaleString("ko-KR")}`;
+  const prev = before.last_summary;
+  const out: { kind: "buy" | "target" | "lowest"; title: string; body: string }[] = [];
+  if (summary.alert && !prev?.alert) {
+    out.push({ kind: "buy", title: `구매 추천 · ${route}`, body: `최저 ${won(summary.minPrice)} · Jev 구매 확률 ${Math.round(summary.buyProbability * 100)}%` });
+  }
+  const target = f.targetPrice;
+  if (target > 0 && summary.minPrice <= target && !(prev && prev.minPrice <= target)) {
+    out.push({ kind: "target", title: `목표가 도달 · ${route}`, body: `최저 ${won(summary.minPrice)} (목표 ${won(target)})` });
+  }
+  if (before.hadHistory && before.lowest_price != null && summary.minPrice <= before.lowest_price * 0.97) {
+    out.push({ kind: "lowest", title: `최저가 경신 · ${route}`, body: `${won(before.lowest_price)} → ${won(summary.minPrice)}` });
+  }
+  return out;
+}

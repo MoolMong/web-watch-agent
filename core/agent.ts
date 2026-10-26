@@ -9,6 +9,7 @@ import { mkdir, writeFile, readFile, appendFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { db, type Request, type Check, type Watch } from "./db.ts";
 import flights from "../watchers/flights/index.ts";
+import { deliver, DASHBOARD_URL, type Alert } from "./notify.ts";
 
 const WATCHERS = { flights } as const;
 type WatcherId = keyof typeof WATCHERS;
@@ -63,6 +64,17 @@ async function runWatch(watch: Watch, requestId: number | null = null) {
       lowest_price: prices.length ? Math.min(...prices) : null,
     });
     await log(`watch #${watch.id}: ${line}`);
+
+    // Notify on state changes only (see events() in the watcher).
+    const url = `${DASHBOARD_URL}${id}/#w=${watch.id}`;
+    const alerts: Alert[] = w.events(config, summary, {
+      last_summary: watch.last_summary as any, lowest_price: watch.lowest_price, hadHistory: prior.length > 0,
+    }).map((e) => ({ ...e, url }));
+    if (alerts.length) {
+      await db.insert("watch_events", alerts.map((a) => ({ watch_id: watch.id, kind: a.kind, title: a.title, body: a.body, url: a.url })));
+      await deliver(alerts);
+      await log(`watch #${watch.id}: notified ${alerts.map((a) => a.kind).join(", ")}`);
+    }
     return line;
   } catch (e) {
     // Record the failure on the watch so the list shows it, and don't retry it for a full interval.

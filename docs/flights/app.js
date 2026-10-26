@@ -74,6 +74,7 @@ function renderWatchList() {
       : `<span class="trend ${diff < 0 ? "down" : "up"}" title="직전 확인 대비">${diff < 0 ? "▼" : "▲"} ${won(Math.abs(diff))}</span>`;
     const lowest = w.lowest_price != null && s && w.lowest_price < s.minPrice ? `<span class="lowest">최저 ${won(w.lowest_price)}</span>`
       : w.lowest_price != null && s && w.prev_summary ? `<span class="lowest best">지금이 최저</span>` : "";
+    const fresh = unreadWatchIds().has(w.id) ? `<span class="new-dot" title="안 읽은 알림">NEW</span>` : "";
     return `<tr class="${w.id === state.selectedId ? "selected" : ""} ${w.enabled ? "" : "off"}" data-id="${w.id}">
       <td class="col-check"><input type="checkbox" data-check="${w.id}" ${state.checked.has(w.id) ? "checked" : ""} aria-label="선택"></td>
       <td class="watch-cell">
@@ -81,7 +82,7 @@ function renderWatchList() {
         <span class="watch-sub">${esc(watchSub(c))}</span>
       </td>
       <td class="num price-cell">${s ? `<b>${won(s.minPrice)}</b>${trend}${lowest}` : "-"}</td>
-      <td>${verdict}</td>
+      <td>${verdict}${fresh}</td>
       <td class="muted">${w.last_checked_at ? when(w.last_checked_at) : "-"}</td>
       <td class="col-on"><label class="switch mini"><input type="checkbox" data-toggle="${w.id}" ${w.enabled ? "checked" : ""} aria-label="자동 확인"><span class="track"></span></label></td>
       <td class="col-actions">
@@ -772,6 +773,73 @@ function setupEditor() {
 }
 
 // =====================================================================
+// Alerts: recent events from the agent, unread marks, browser notifications
+// =====================================================================
+const KIND_LABEL = { buy: "구매 추천", target: "목표가", lowest: "최저가" };
+const alertsState = { rows: [], seenAt: store.get("alerts-seen-at", null) };
+const isUnread = (e) => !alertsState.seenAt || e.created_at > alertsState.seenAt;
+const unreadWatchIds = () => new Set(alertsState.rows.filter(isUnread).map((e) => e.watch_id));
+
+async function loadAlerts() {
+  const { data, error } = await sb.from("watch_events").select("*").order("created_at", { ascending: false }).limit(20);
+  if (error) throw error;
+  alertsState.rows = data;
+  renderAlerts();
+}
+
+function renderAlerts() {
+  const rows = alertsState.rows;
+  $("alerts-card").hidden = rows.length === 0;
+  const unread = rows.filter(isUnread).length;
+  $("alert-count").textContent = unread ? unread : "";
+  $("alerts").innerHTML = rows.slice(0, 6).map((e) => `
+    <li class="alert-item ${isUnread(e) ? "unread" : ""}" data-watch="${e.watch_id ?? ""}">
+      <span class="tag kind-${e.kind}">${KIND_LABEL[e.kind] || esc(e.kind)}</span>
+      <span class="alert-text"><b>${esc(e.title.split(" · ").slice(1).join(" · ") || e.title)}</b><span class="muted">${esc(e.body || "")}</span></span>
+      <span class="alert-time muted">${when(e.created_at)}</span>
+    </li>`).join("");
+  updateNotifyButton();
+  renderWatchList();
+}
+
+function markAlertsRead() {
+  alertsState.seenAt = alertsState.rows[0]?.created_at ?? new Date().toISOString();
+  store.set("alerts-seen-at", alertsState.seenAt);
+  renderAlerts();
+}
+
+function updateNotifyButton() {
+  const b = $("notify-toggle");
+  if (!("Notification" in window)) { b.hidden = true; return; }
+  const p = Notification.permission;
+  b.textContent = p === "granted" ? "브라우저 알림 켜짐" : p === "denied" ? "브라우저 알림 차단됨" : "브라우저 알림 켜기";
+  b.disabled = p !== "default";
+}
+
+function showBrowserNotification(e) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  if (document.visibilityState === "visible") return; // the page itself shows it
+  const n = new Notification(e.title, { body: e.body || "", tag: `wwa-${e.id}` });
+  n.onclick = () => { window.focus(); if (e.watch_id) selectWatch(e.watch_id); n.close(); };
+}
+
+function setupAlerts() {
+  $("alerts-read").addEventListener("click", markAlertsRead);
+  $("notify-toggle").addEventListener("click", async () => { await Notification.requestPermission(); updateNotifyButton(); });
+  $("alerts").addEventListener("click", (e) => {
+    const id = Number(e.target.closest("[data-watch]")?.dataset.watch);
+    if (id && findWatch(id)) selectWatch(id);
+  });
+  sb.channel("events-live")
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "watch_events" }, (p) => {
+      alertsState.rows = [p.new, ...alertsState.rows].slice(0, 20);
+      renderAlerts();
+      showBrowserNotification(p.new);
+    })
+    .subscribe();
+}
+
+// =====================================================================
 // Start
 // =====================================================================
 function subscribeLive() {
@@ -802,10 +870,15 @@ function subscribeLive() {
       hotel: { enabled: false, query: "", minRating: 0 }, alert: { minBuyProbability: 0.7 },
     });
     updateEditorHead();
+    // A link like flights/#w=12 (from a notification) opens that watch.
+    const fromHash = Number(new URLSearchParams(location.hash.slice(1)).get("w"));
     const saved = store.get("selected-watch", null);
-    state.selectedId = findWatch(saved) ? saved : recent?.id ?? null;
+    state.selectedId = findWatch(fromHash) ? fromHash : findWatch(saved) ? saved : recent?.id ?? null;
     renderWatchList();
     await showDetail();
+    if (findWatch(fromHash)) $("detail").scrollIntoView({ block: "start" });
+    setupAlerts();
+    await loadAlerts().catch((e) => console.warn("alerts:", e));
     await resumePendingRequests();
     subscribeLive();
   } catch (e) {

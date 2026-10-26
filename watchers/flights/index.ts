@@ -1,6 +1,6 @@
 // Watcher definition used by core/agent.ts.
 import { defaultConfig, validateConfig } from "./config.ts";
-import { judge, configKey } from "./judge.ts";
+import { judge, configKey, events } from "./judge.ts";
 
 export default {
   id: "flights",
@@ -11,4 +11,5 @@ export default {
   validateConfig,
   configKey,
   judge,
+  events,
 };

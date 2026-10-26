@@ -126,6 +126,18 @@
     <p id="run-status" class="run-status" hidden></p>
   </section>
 
+  <!-- alerts -->
+  <section class="card alerts-card" id="alerts-card" hidden>
+    <div class="card-head">
+      <h2>최근 알림 <span id="alert-count" class="count unread"></span></h2>
+      <div class="alerts-tools">
+        <button type="button" id="notify-toggle" class="button ghost small-btn">브라우저 알림 켜기</button>
+        <button type="button" id="alerts-read" class="button ghost small-btn">모두 읽음</button>
+      </div>
+    </div>
+    <ul id="alerts" class="alerts"></ul>
+  </section>
+
   <!-- list -->
   <section class="card list-card">
     <div class="card-head">
