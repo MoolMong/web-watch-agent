@@ -182,12 +182,17 @@ function drawHotels() {
   const c = h.config;
   const exCapsule = $("ex-capsule").checked, exDorm = $("ex-dorm").checked, sort = $("hotel-sort").value;
   store.set("ex-capsule", exCapsule); store.set("ex-dorm", exDorm); store.set("hotel-sort", sort);
+  // Hotels without a price (Google didn't quote the stay) sort last.
+  const byPrice = (a, b) => (a.price ?? Infinity) - (b.price ?? Infinity);
   const shown = h.list
     .filter((x) => !(exCapsule && x.tag === "capsule") && !(exDorm && x.tag === "dorm"))
-    .sort((a, b) => sort === "rating" ? (b.rating ?? 0) - (a.rating ?? 0) || a.price - b.price : a.price - b.price);
+    .sort((a, b) => sort === "rating" ? (b.rating ?? 0) - (a.rating ?? 0) || byPrice(a, b) : byPrice(a, b));
   const hidden = h.list.length - shown.length;
   $("hotel-meta").textContent = `${c.query || ""} · ${c.minRating ? `평점 ${Number(c.minRating).toFixed(1)} 이상 · ` : ""}${shown.length}곳${hidden ? ` (${hidden}곳 숨김)` : ""}`;
-  $("s-hotel").textContent = shown.length ? won(Math.min(...shown.map((x) => x.price))) : "-";
+  const priced = shown.map((x) => x.price).filter((p) => p != null);
+  $("s-hotel").textContent = priced.length ? won(Math.min(...priced)) : "-";
+  $("s-hotel-hint").textContent = shown.length && !priced.length
+    ? "구글이 이 기간 요금을 보여 주지 않음 (보통 30박 초과)" : "아래 숙소 필터 기준";
   $("hotels").innerHTML = shown.map((x) => {
     const q = encodeURIComponent(`${x.name} ${c.checkIn || ""} to ${c.checkOut || ""}`);
     const tag = x.tag ? `<span class="tag lodging ${x.tag}" title="Jev 확신도 ${pct(x.tagConfidence)}">${TAG_LABEL[x.tag] || esc(x.tag)}</span>` : "";
@@ -196,7 +201,7 @@ function drawHotels() {
         <a href="https://www.google.com/travel/search?q=${q}&hl=ko&curr=KRW" target="_blank" rel="noopener">${esc(x.name)}</a>
         <span class="hotel-sub">${x.rating != null ? `★ ${x.rating.toFixed(1)}` : "평점 없음"}${x.reviews ? ` (${x.reviews.toLocaleString("ko-KR")})` : ""}${x.stars ? ` · ${x.stars}성급` : ""}${x.deal ? ` · ${esc(x.deal)}` : ""}</span>
       </div>
-      <div class="hotel-side">${tag}<b>${won(x.price)}</b></div>
+      <div class="hotel-side">${tag}${x.price != null ? `<b>${won(x.price)}</b>` : `<span class="muted small">요금 미표시</span>`}</div>
     </li>`;
   }).join("") || `<li class="muted">조건에 맞는 숙소가 없습니다.</li>`;
 }

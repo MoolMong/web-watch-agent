@@ -78,7 +78,7 @@ export async function judge(config: FlightsConfig, scrape: any, history: Summary
       console.error("hotel tagging failed:", (e as Error).message);
     }
     scrape.hotel.list = kept.map((h: any) => ({ ...h, tag: tags[h.name]?.tag ?? null, tagConfidence: tags[h.name]?.confidence ?? null }));
-    const prices = kept.map((h: any) => h.price).sort((a: number, b: number) => a - b);
+    const prices = kept.map((h: any) => h.price).filter((p: number | null) => p != null).sort((a: number, b: number) => a - b);
     scrape.hotel.count = kept.length;
     scrape.hotel.minPricePerNight = prices[0] ?? null;
     scrape.hotel.medianPricePerNight = prices.length ? prices[Math.floor(prices.length / 2)] : null;
