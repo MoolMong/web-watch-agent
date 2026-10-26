@@ -34,6 +34,12 @@ create table if not exists public.watch_checks (
 create index if not exists watch_checks_recent on public.watch_checks (watcher, checked_at desc);
 create index if not exists watch_requests_pending on public.watch_requests (status, created_at);
 
+-- Table privileges (needed when "Automatically expose new tables" is off); RLS below narrows them.
+revoke all on public.watch_configs, public.watch_requests, public.watch_checks from anon;
+grant select on public.watch_configs, public.watch_checks to authenticated;
+grant select, insert on public.watch_requests to authenticated;
+grant all on public.watch_configs, public.watch_requests, public.watch_checks to service_role;
+
 alter table public.watch_configs  enable row level security;
 alter table public.watch_requests enable row level security;
 alter table public.watch_checks   enable row level security;
